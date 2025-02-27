@@ -18,6 +18,24 @@ A powerful web application for designing, analyzing, and comparing different dat
 - **Import/Export**: Share topology designs with JSON export/import functionality
 - **Dark Mode**: Toggle between light and dark themes for comfortable viewing
 
+## Screenshots
+
+### Home Page
+![Home Page](./images/homepage.png)
+*The application home page provides quick access to create new topologies, use templates, or import existing designs.*
+
+### Topology Builder
+![Topology Builder](./images/topology_builder.png)
+*The topology builder interface allows detailed configuration of spine and leaf switches, including manufacturer selection, port configurations, and advanced settings.*
+
+### Topology Visualization
+![Topology Visualization](./images/topology_visualization.png)
+*The visualization page displays comprehensive metrics and analytics for the selected topology, including cost breakdown, power usage, and network characteristics.*
+
+### Topology Comparison
+![Topology Comparison](./images/topology_comparison.png)
+*The comparison view enables side-by-side analysis of multiple topologies to identify the optimal design for specific requirements.*
+
 ## Getting Started
 
 ### Prerequisites
