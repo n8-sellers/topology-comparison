@@ -183,6 +183,27 @@ export const createDeviceTemplate = (deviceType) => {
   return baseTemplate;
 };
 
+// Clone an existing device
+export const cloneDevice = async (deviceType, deviceId) => {
+  // Get the device to clone
+  const sourceDevice = await getDeviceById(deviceType, deviceId);
+  
+  if (!sourceDevice) {
+    throw new Error('Source device not found');
+  }
+  
+  // Create a clone with a new model name and ID
+  const clonedDevice = {
+    ...sourceDevice,
+    model: `${sourceDevice.model} (Clone)`,
+    description: `${sourceDevice.description} (Cloned)`,
+    isBuiltIn: undefined // Remove the isBuiltIn flag
+  };
+  
+  // Add the cloned device
+  return await addDevice(deviceType, clonedDevice);
+};
+
 // Add a new manufacturer
 export const addManufacturer = async (deviceType, manufacturerName) => {
   if (!manufacturerName) {
@@ -220,6 +241,7 @@ const DeviceManagementService = {
   isBuiltInDevice,
   createDeviceTemplate,
   addManufacturer,
+  cloneDevice,
   
   // Sync versions for backward compatibility
   sync: {

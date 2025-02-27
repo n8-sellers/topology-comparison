@@ -26,6 +26,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeviceManagementService from '../../services/DeviceManagementService';
 import AddManufacturerDialog from './AddManufacturerDialog';
 import DeviceFormDialog from './DeviceFormDialog';
@@ -332,6 +333,32 @@ const DeviceSelection = ({ topology, setTopology }) => {
     }
   };
 
+  // Handle cloning a device
+  const handleCloneDevice = async (deviceType, deviceId) => {
+    try {
+      const clonedDevice = await DeviceManagementService.cloneDevice(deviceType, deviceId);
+      
+      // Refresh devices list
+      if (deviceType === 'spine') {
+        const devices = await DeviceManagementService.getDevicesByManufacturer('spine', selectedSpineManufacturer);
+        setSpineDevices(devices);
+        
+        // Select the cloned device
+        handleSpineDeviceChange({ target: { value: clonedDevice.id } });
+      } else {
+        const devices = await DeviceManagementService.getDevicesByManufacturer('leaf', selectedLeafManufacturer);
+        setLeafDevices(devices);
+        
+        // Select the cloned device
+        handleLeafDeviceChange({ target: { value: clonedDevice.id } });
+      }
+      
+    } catch (error) {
+      console.error('Error cloning device:', error);
+      alert(`Error cloning device: ${error.message}`);
+    }
+  };
+
   // Handle deleting a device
   const handleDeleteDevice = async (deviceType, deviceId) => {
     // Confirm deletion
@@ -632,6 +659,15 @@ const DeviceSelection = ({ topology, setTopology }) => {
                       </Typography>
                     </Box>
                     <Box>
+                      <Tooltip title="Clone Device">
+                        <IconButton 
+                          size="small" 
+                          color="info"
+                          onClick={() => handleCloneDevice('spine', selectedSpineDevice.id)}
+                        >
+                          <ContentCopyIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       {!selectedSpineDevice.isBuiltIn && (
                         <>
                           <Tooltip title="Edit Device">
@@ -769,6 +805,15 @@ const DeviceSelection = ({ topology, setTopology }) => {
                       </Typography>
                     </Box>
                     <Box>
+                      <Tooltip title="Clone Device">
+                        <IconButton 
+                          size="small" 
+                          color="info"
+                          onClick={() => handleCloneDevice('leaf', selectedLeafDevice.id)}
+                        >
+                          <ContentCopyIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       {!selectedLeafDevice.isBuiltIn && (
                         <>
                           <Tooltip title="Edit Device">
