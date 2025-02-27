@@ -27,8 +27,19 @@ const defaultTopology = {
       breakoutMode: '1x800G'
     },
     leafConfig: {
-      portCount: 48,
+      portCount: 64,
       downlinkSpeed: '100G'
+    },
+    // Device selection
+    deviceSelection: {
+      spine: {
+        deviceId: 'arista-7800r3',
+        useDefaultConfig: true
+      },
+      leaf: {
+        deviceId: 'cisco-nexus-9364d',
+        useDefaultConfig: true
+      }
     },
     
     // Advanced configuration

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTopology } from '../../context/TopologyContext';
 import { calculateAllMetrics } from '../../services/CalculationService';
+import { getDeviceById } from '../../data/deviceCatalog';
 import {
   Box,
   Card,
@@ -276,21 +277,39 @@ const TopologyMetrics = () => {
                     </Typography>
                   </Paper>
                 </Grid>
-                {currentTopology.configuration.spineConfig ? (
+                {currentTopology.configuration.deviceSelection?.spine?.deviceId ? (
                   <Grid item xs={12} sm={6} md={3}>
                     <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="textSecondary">
-                        Spine Configuration
+                        Spine Switch
                       </Typography>
-                      <Typography variant="body2">
-                        <strong>Port Count:</strong> {currentTopology.configuration.spineConfig.portCount}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Port Speed:</strong> {currentTopology.configuration.spineConfig.portSpeed}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Breakout Mode:</strong> {currentTopology.configuration.spineConfig.breakoutMode}
-                      </Typography>
+                      {(() => {
+                        const spineDevice = getDeviceById('spine', currentTopology.configuration.deviceSelection.spine.deviceId);
+                        if (!spineDevice) {
+                          return (
+                            <Typography variant="body2" color="error">
+                              Device information not available
+                            </Typography>
+                          );
+                        }
+                        
+                        return (
+                          <>
+                            <Typography variant="body2">
+                              <strong>Model:</strong> {spineDevice.manufacturer} {spineDevice.model}
+                            </Typography>
+                            <Typography variant="body2">
+                              <strong>Port Count:</strong> {currentTopology.configuration.spineConfig.portCount}
+                            </Typography>
+                            <Typography variant="body2">
+                              <strong>Port Speed:</strong> {currentTopology.configuration.spineConfig.portSpeed}
+                            </Typography>
+                            <Typography variant="body2">
+                              <strong>Breakout Mode:</strong> {currentTopology.configuration.spineConfig.breakoutMode}
+                            </Typography>
+                          </>
+                        );
+                      })()}
                       <Typography variant="body2" sx={{ mt: 1 }}>
                         {(() => {
                           // Ensure spineConfig exists
@@ -323,17 +342,69 @@ const TopologyMetrics = () => {
                       </Typography>
                     </Paper>
                   </Grid>
-                ) : currentTopology.configuration.linkTypes ? (
+                ) : currentTopology.configuration.spineConfig ? (
                   <Grid item xs={12} sm={6} md={3}>
                     <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="textSecondary">
-                        Link Configuration
+                        Spine Configuration
                       </Typography>
-                      {currentTopology.configuration.linkTypes.map((link, index) => (
-                        <Typography key={index} variant="body2">
-                          <strong>{link.type}:</strong> {link.count} links per spine
-                        </Typography>
-                      ))}
+                      <Typography variant="body2">
+                        <strong>Port Count:</strong> {currentTopology.configuration.spineConfig.portCount}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Port Speed:</strong> {currentTopology.configuration.spineConfig.portSpeed}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Breakout Mode:</strong> {currentTopology.configuration.spineConfig.breakoutMode}
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                ) : null}
+                
+                {currentTopology.configuration.deviceSelection?.leaf?.deviceId ? (
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="textSecondary">
+                        Leaf Switch
+                      </Typography>
+                      {(() => {
+                        const leafDevice = getDeviceById('leaf', currentTopology.configuration.deviceSelection.leaf.deviceId);
+                        if (!leafDevice) {
+                          return (
+                            <Typography variant="body2" color="error">
+                              Device information not available
+                            </Typography>
+                          );
+                        }
+                        
+                        return (
+                          <>
+                            <Typography variant="body2">
+                              <strong>Model:</strong> {leafDevice.manufacturer} {leafDevice.model}
+                            </Typography>
+                            <Typography variant="body2">
+                              <strong>Port Count:</strong> {currentTopology.configuration.leafConfig?.portCount || 'N/A'}
+                            </Typography>
+                            <Typography variant="body2">
+                              <strong>Downlink Speed:</strong> {currentTopology.configuration.leafConfig?.downlinkSpeed || 'N/A'}
+                            </Typography>
+                          </>
+                        );
+                      })()}
+                    </Paper>
+                  </Grid>
+                ) : currentTopology.configuration.leafConfig ? (
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="textSecondary">
+                        Leaf Configuration
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Port Count:</strong> {currentTopology.configuration.leafConfig.portCount}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Downlink Speed:</strong> {currentTopology.configuration.leafConfig.downlinkSpeed}
+                      </Typography>
                     </Paper>
                   </Grid>
                 ) : null}

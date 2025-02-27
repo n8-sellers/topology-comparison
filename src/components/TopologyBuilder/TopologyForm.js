@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTopology } from '../../context/TopologyContext';
 import { exportTopology } from '../../utils/importExport';
+import DeviceSelection from './DeviceSelection';
 import { 
   Box, 
   Card, 
@@ -261,6 +262,7 @@ const TopologyForm = () => {
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 3 }}>
           <Tabs value={tabValue} onChange={handleTabChange} aria-label="topology configuration tabs">
             <Tab label="Basic Configuration" />
+            <Tab label="Device Selection" />
             <Tab label="Advanced Configuration" />
             <Tab label="Cost & Power" />
             <Tab label="Other Parameters" />
@@ -474,7 +476,7 @@ const TopologyForm = () => {
                   <TextField
                     select
                     label="Port Count"
-                    value={topology.configuration.leafConfig?.portCount || 48}
+                    value={topology.configuration.leafConfig?.portCount || 64}
                     onChange={(e) => {
                       const updatedConfig = { 
                         ...topology.configuration,
@@ -491,8 +493,7 @@ const TopologyForm = () => {
                     SelectProps={{ native: true }}
                     sx={{ mr: 2, width: 120 }}
                   >
-                    <option value={24}>24 ports</option>
-                    <option value={48}>48 ports</option>
+                    <option value={32}>32 ports</option>
                     <option value={64}>64 ports</option>
                   </TextField>
                 </Box>
@@ -524,6 +525,7 @@ const TopologyForm = () => {
                     <option value="40G">40G</option>
                     <option value="100G">100G</option>
                     <option value="400G">400G</option>
+                    <option value="800G">800G</option>
                   </TextField>
                   
                   <Tooltip title="The speed of the downlink ports that connect to servers or other devices.">
@@ -538,8 +540,13 @@ const TopologyForm = () => {
           </Grid>
         </TabPanel>
         
-        {/* Advanced Configuration Tab */}
+        {/* Device Selection Tab */}
         <TabPanel value={tabValue} index={1}>
+          <DeviceSelection topology={topology} setTopology={setTopology} />
+        </TabPanel>
+        
+        {/* Advanced Configuration Tab */}
+        <TabPanel value={tabValue} index={2}>
           <Grid container spacing={3}>
             
             <Grid item xs={12} md={6}>
@@ -569,7 +576,7 @@ const TopologyForm = () => {
         </TabPanel>
         
         {/* Cost & Power Tab */}
-        <TabPanel value={tabValue} index={2}>
+        <TabPanel value={tabValue} index={3}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
               <Typography variant="h6" gutterBottom>Switch Cost</Typography>
@@ -623,6 +630,18 @@ const TopologyForm = () => {
                 onChange={(e) => {
                   const updatedOpticsCost = { ...topology.configuration.opticsCost };
                   updatedOpticsCost['400G'] = parseInt(e.target.value) || 0;
+                  handleConfigChange('opticsCost', updatedOpticsCost);
+                }}
+                type="number"
+                fullWidth
+                margin="normal"
+              />
+              <TextField
+                label="800G Optic Cost"
+                value={topology.configuration.opticsCost['800G']}
+                onChange={(e) => {
+                  const updatedOpticsCost = { ...topology.configuration.opticsCost };
+                  updatedOpticsCost['800G'] = parseInt(e.target.value) || 0;
                   handleConfigChange('opticsCost', updatedOpticsCost);
                 }}
                 type="number"
@@ -689,12 +708,24 @@ const TopologyForm = () => {
                 fullWidth
                 margin="normal"
               />
+              <TextField
+                label="800G Optic Power"
+                value={topology.configuration.powerUsage.optics['800G']}
+                onChange={(e) => {
+                  const updatedOptics = { ...topology.configuration.powerUsage.optics };
+                  updatedOptics['800G'] = parseInt(e.target.value) || 0;
+                  handleNestedConfigChange('powerUsage', 'optics', updatedOptics);
+                }}
+                type="number"
+                fullWidth
+                margin="normal"
+              />
             </Grid>
           </Grid>
         </TabPanel>
         
         {/* Other Parameters Tab */}
-        <TabPanel value={tabValue} index={3}>
+        <TabPanel value={tabValue} index={4}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
               <Typography variant="h6" gutterBottom>Latency Parameters</Typography>
