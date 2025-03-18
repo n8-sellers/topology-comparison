@@ -1,6 +1,6 @@
-# Network Topology Analyzer
+# Data Center Network Topology Analyzer
 
-A powerful web application for designing, analyzing, and comparing different network topologies with a focus on Clos architectures.
+A powerful web application for designing, analyzing, and comparing different data center network topologies with a focus on Clos architectures.
 
 ## Features
 
