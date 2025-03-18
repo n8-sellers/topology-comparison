@@ -66,6 +66,23 @@ If you encounter routing issues:
 2. Verify the application is using `HashRouter` instead of `BrowserRouter`
 3. Check for any hard-coded paths in your components
 
+### TypeScript Version
+
+This project uses TypeScript 4.9.5 for compatibility with React Scripts 5.0.1. The original error was:
+
+```
+npm error While resolving: react-scripts@5.0.1
+npm error Found: typescript@5.8.2
+npm error Could not resolve dependency:
+npm error peerOptional typescript@"^3.2.1 || ^4" from react-scripts@5.0.1
+```
+
+To resolve this:
+1. We downgraded TypeScript to 4.9.5 in package.json
+2. Added an .npmrc file to ensure consistent dependency resolution
+
+If you update React Scripts in the future, you may be able to use a newer TypeScript version.
+
 ### Build Failures
 
 If your build fails:

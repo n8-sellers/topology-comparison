@@ -102,6 +102,25 @@ npm run build
 
 The build folder can be deployed to any static hosting service.
 
+### Vercel Deployment
+
+This application is optimized for deployment on Vercel:
+
+1. Prepare for deployment:
+   ```bash
+   # Install Vercel CLI (if you haven't already)
+   npm install -g vercel
+   ```
+
+2. Deploy to Vercel:
+   ```bash
+   npm run deploy:vercel
+   ```
+
+For detailed instructions, configuration options, and troubleshooting, refer to the [README-vercel.md](./README-vercel.md) file.
+
+**Note:** This project uses TypeScript 4.9.5 for compatibility with React Scripts 5.0.1. The Vercel configuration includes specific routing settings and optimizations for the best performance.
+
 ### Docker Deployment
 
 To containerize the application with Docker:
