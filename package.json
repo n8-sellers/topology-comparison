@@ -51,15 +51,22 @@
     ]
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.11",
+    "@types/react-dom": "^19.0.4",
+    "@typescript-eslint/eslint-plugin": "^8.26.1",
+    "@typescript-eslint/parser": "^8.26.1",
     "concurrently": "^8.2.2",
     "electron": "^30.0.0",
     "electron-builder": "^24.13.3",
     "electron-is-dev": "^2.0.0",
+    "typescript": "^5.8.2",
     "wait-on": "^7.2.0"
   },
   "build": {
     "appId": "com.yourusername.dc-network-topology-analyzer",
-    "productName": "Data Center Network Topology Analyzer",
+    "productName": "Network Topology Analyzer",
     "files": [
       "build/**/*",
       "node_modules/**/*"
@@ -69,13 +76,23 @@
     },
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "linux": {
-      "target": ["AppImage", "deb", "rpm"],
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
       "category": "Development"
     }
   }

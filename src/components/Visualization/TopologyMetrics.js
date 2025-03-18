@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useTopology } from '../../context/TopologyContext';
 import { calculateAllMetrics } from '../../services/CalculationService';
 import { getDeviceById } from '../../data/deviceCatalog';
@@ -10,7 +10,11 @@ import {
   Divider,
   Grid,
   Typography,
-  Paper
+  Paper,
+  Tooltip,
+  Zoom,
+  Fade,
+  Skeleton
 } from '@mui/material';
 import {
   Chart as ChartJS,
@@ -18,7 +22,7 @@ import {
   LinearScale,
   BarElement,
   Title,
-  Tooltip,
+  Tooltip as ChartTooltip,
   Legend,
   ArcElement,
   RadialLinearScale,
@@ -33,7 +37,7 @@ ChartJS.register(
   LinearScale,
   BarElement,
   Title,
-  Tooltip,
+  ChartTooltip,
   Legend,
   ArcElement,
   RadialLinearScale,
@@ -44,22 +48,87 @@ ChartJS.register(
 const TopologyMetrics = () => {
   const { currentTopology } = useTopology();
   const [metrics, setMetrics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const chartRefs = useRef({});
 
   useEffect(() => {
     if (currentTopology) {
-      const calculatedMetrics = calculateAllMetrics(currentTopology);
-      setMetrics(calculatedMetrics);
+      setLoading(true);
+      // Simulate a short loading delay to show animations
+      setTimeout(() => {
+        const calculatedMetrics = calculateAllMetrics(currentTopology);
+        setMetrics(calculatedMetrics);
+        setLoading(false);
+      }, 500);
     } else {
       setMetrics(null);
+      setLoading(false);
     }
   }, [currentTopology]);
 
-  if (!currentTopology || !metrics) {
+  // Register chart references
+  const registerChartRef = (chartName, ref) => {
+    chartRefs.current[chartName] = ref;
+  };
+
+  if (!currentTopology) {
     return (
       <Card>
         <CardContent>
           <Typography variant="body1">
             Select or create a topology to view metrics.
+          </Typography>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Card sx={{ mb: 4 }}>
+        <CardHeader 
+          title={<Skeleton width="60%" />}
+          subheader={<Skeleton width="40%" />}
+        />
+        <Divider />
+        <CardContent>
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                <Skeleton width="30%" />
+              </Typography>
+              <Grid container spacing={2}>
+                {[...Array(4)].map((_, index) => (
+                  <Grid item xs={12} sm={6} md={3} key={index}>
+                    <Skeleton variant="rectangular" height={120} />
+                  </Grid>
+                ))}
+              </Grid>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant="h6" gutterBottom>
+                <Skeleton width="40%" />
+              </Typography>
+              <Skeleton variant="rectangular" height={400} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant="h6" gutterBottom>
+                <Skeleton width="35%" />
+              </Typography>
+              <Skeleton variant="rectangular" height={400} />
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!metrics) {
+    return (
+      <Card>
+        <CardContent>
+          <Typography variant="body1">
+            Error calculating metrics. Please try again.
           </Typography>
         </CardContent>
       </Card>
@@ -211,71 +280,183 @@ const TopologyMetrics = () => {
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6} md={3}>
-                  <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Total Devices
-                    </Typography>
-                    <Typography variant="h4">
-                      {formatNumber(metrics.deviceCount.total)}
-                    </Typography>
-                    <Typography variant="body2">
-                      {metrics.deviceCount.spines} spine, {metrics.deviceCount.leafs} leaf
-                    </Typography>
-                  </Paper>
+                  <Zoom in={!loading} style={{ transitionDelay: '100ms' }}>
+                    <Tooltip 
+                      title={
+                        <React.Fragment>
+                          <Typography color="inherit" variant="subtitle2">Device Breakdown</Typography>
+                          <Typography variant="body2">Spine Switches: {metrics.deviceCount.spines}</Typography>
+                          <Typography variant="body2">Leaf Switches: {metrics.deviceCount.leafs}</Typography>
+                          <Typography variant="body2">Device Ratio: {(metrics.deviceCount.leafs / metrics.deviceCount.spines).toFixed(2)} leaf per spine</Typography>
+                        </React.Fragment>
+                      } 
+                      arrow 
+                      placement="top"
+                    >
+                      <Paper 
+                        elevation={2} 
+                        sx={{ 
+                          p: 2, 
+                          height: '100%', 
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: 4
+                          }
+                        }}
+                      >
+                        <Typography variant="subtitle2" color="textSecondary">
+                          Total Devices
+                        </Typography>
+                        <Typography variant="h4">
+                          {formatNumber(metrics.deviceCount.total)}
+                        </Typography>
+                        <Typography variant="body2">
+                          {metrics.deviceCount.spines} spine, {metrics.deviceCount.leafs} leaf
+                        </Typography>
+                      </Paper>
+                    </Tooltip>
+                  </Zoom>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Total Cost
-                    </Typography>
-                    <Typography variant="h4">
-                      {formatCurrency(metrics.cost.total)}
-                    </Typography>
-                    <Typography variant="body2">
-                      Switches: {formatCurrency(metrics.cost.switches.total)}
-                    </Typography>
-                    <Typography variant="body2">
-                      Optics: {formatCurrency(metrics.cost.optics)}
-                    </Typography>
-                  </Paper>
+                  <Zoom in={!loading} style={{ transitionDelay: '200ms' }}>
+                    <Tooltip 
+                      title={
+                        <React.Fragment>
+                          <Typography color="inherit" variant="subtitle2">Cost Breakdown</Typography>
+                          <Typography variant="body2">Spine Switches: {formatCurrency(metrics.cost.switches.spine)}</Typography>
+                          <Typography variant="body2">Leaf Switches: {formatCurrency(metrics.cost.switches.leaf)}</Typography>
+                          <Typography variant="body2">Optics: {formatCurrency(metrics.cost.optics)}</Typography>
+                          <Typography variant="body2">Per Port Cost: {formatCurrency(metrics.cost.total / (metrics.deviceCount.total || 1))}</Typography>
+                        </React.Fragment>
+                      } 
+                      arrow 
+                      placement="top"
+                    >
+                      <Paper 
+                        elevation={2} 
+                        sx={{ 
+                          p: 2, 
+                          height: '100%', 
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: 4
+                          }
+                        }}
+                      >
+                        <Typography variant="subtitle2" color="textSecondary">
+                          Total Cost
+                        </Typography>
+                        <Typography variant="h4">
+                          {formatCurrency(metrics.cost.total)}
+                        </Typography>
+                        <Typography variant="body2">
+                          Switches: {formatCurrency(metrics.cost.switches.total)}
+                        </Typography>
+                        <Typography variant="body2">
+                          Optics: {formatCurrency(metrics.cost.optics)}
+                        </Typography>
+                      </Paper>
+                    </Tooltip>
+                  </Zoom>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Power Usage
-                    </Typography>
-                    <Typography variant="h4">
-                      {formatPower(metrics.power.total)}
-                    </Typography>
-                    <Typography variant="body2">
-                      Switches: {formatPower(metrics.power.switches.total)}
-                    </Typography>
-                    <Typography variant="body2">
-                      Optics: {formatPower(metrics.power.optics)}
-                    </Typography>
-                  </Paper>
+                  <Zoom in={!loading} style={{ transitionDelay: '300ms' }}>
+                    <Tooltip 
+                      title={
+                        <React.Fragment>
+                          <Typography color="inherit" variant="subtitle2">Power Breakdown</Typography>
+                          <Typography variant="body2">Spine Switches: {formatPower(metrics.power.switches.spine)}</Typography>
+                          <Typography variant="body2">Leaf Switches: {formatPower(metrics.power.switches.leaf)}</Typography>
+                          <Typography variant="body2">Optics: {formatPower(metrics.power.optics)}</Typography>
+                          <Typography variant="body2">Annual Energy Cost: {formatCurrency(metrics.power.total * 24 * 365 * 0.12 / 1000)}</Typography>
+                        </React.Fragment>
+                      } 
+                      arrow 
+                      placement="top"
+                    >
+                      <Paper 
+                        elevation={2} 
+                        sx={{ 
+                          p: 2, 
+                          height: '100%', 
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: 4
+                          }
+                        }}
+                      >
+                        <Typography variant="subtitle2" color="textSecondary">
+                          Power Usage
+                        </Typography>
+                        <Typography variant="h4">
+                          {formatPower(metrics.power.total)}
+                        </Typography>
+                        <Typography variant="body2">
+                          Switches: {formatPower(metrics.power.switches.total)}
+                        </Typography>
+                        <Typography variant="body2">
+                          Optics: {formatPower(metrics.power.optics)}
+                        </Typography>
+                      </Paper>
+                    </Tooltip>
+                  </Zoom>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Oversubscription Ratio
-                    </Typography>
-                    <Typography variant="h4">
-                      {metrics.oversubscription.ratio}:1
-                    </Typography>
-                    <Typography variant="body2">
-                      Uplink: {formatNumber(metrics.oversubscription.uplinkCapacity)} Gbps
-                    </Typography>
-                    <Typography variant="body2">
-                      Downlink: {formatNumber(metrics.oversubscription.downlinkCapacity)} Gbps
-                    </Typography>
-                    <Typography variant="body2">
-                      Uplink Ports: {metrics.oversubscription.uplinkPortsPerLeaf} per leaf
-                    </Typography>
-                    <Typography variant="body2">
-                      Downlink Ports: {metrics.oversubscription.downlinkPortsPerLeaf} per leaf
-                    </Typography>
-                  </Paper>
+                  <Zoom in={!loading} style={{ transitionDelay: '400ms' }}>
+                    <Tooltip 
+                      title={
+                        <React.Fragment>
+                          <Typography color="inherit" variant="subtitle2">Oversubscription Details</Typography>
+                          <Typography variant="body2">Total Uplink Bandwidth: {formatNumber(metrics.oversubscription.uplinkCapacity * metrics.deviceCount.leafs)} Gbps</Typography>
+                          <Typography variant="body2">Total Downlink Bandwidth: {formatNumber(metrics.oversubscription.downlinkCapacity * metrics.deviceCount.leafs)} Gbps</Typography>
+                          <Typography variant="body2">
+                            {metrics.oversubscription.ratio <= 1 
+                              ? "Non-blocking fabric (full bisection bandwidth)" 
+                              : metrics.oversubscription.ratio <= 2 
+                                ? "Moderate oversubscription" 
+                                : "High oversubscription ratio"}
+                          </Typography>
+                        </React.Fragment>
+                      } 
+                      arrow 
+                      placement="top"
+                    >
+                      <Paper 
+                        elevation={2} 
+                        sx={{ 
+                          p: 2, 
+                          height: '100%', 
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: 4
+                          }
+                        }}
+                      >
+                        <Typography variant="subtitle2" color="textSecondary">
+                          Oversubscription Ratio
+                        </Typography>
+                        <Typography variant="h4">
+                          {metrics.oversubscription.ratio}:1
+                        </Typography>
+                        <Typography variant="body2">
+                          Uplink: {formatNumber(metrics.oversubscription.uplinkCapacity)} Gbps
+                        </Typography>
+                        <Typography variant="body2">
+                          Downlink: {formatNumber(metrics.oversubscription.downlinkCapacity)} Gbps
+                        </Typography>
+                        <Typography variant="body2">
+                          Uplink Ports: {metrics.oversubscription.uplinkPortsPerLeaf} per leaf
+                        </Typography>
+                        <Typography variant="body2">
+                          Downlink Ports: {metrics.oversubscription.downlinkPortsPerLeaf} per leaf
+                        </Typography>
+                      </Paper>
+                    </Tooltip>
+                  </Zoom>
                 </Grid>
                 {currentTopology.configuration.deviceSelection?.spine?.deviceId ? (
                   <Grid item xs={12} sm={6} md={3}>
@@ -416,35 +597,106 @@ const TopologyMetrics = () => {
               <Typography variant="h6" gutterBottom>
                 Overall Performance
               </Typography>
-              <Box sx={{ height: 400 }}>
-                <Radar 
-                  data={radarData} 
-                  options={{
-                    scales: {
-                      r: {
-                        min: 0,
-                        max: 100,
-                        ticks: {
-                          stepSize: 20
-                        }
-                      }
-                    },
-                    plugins: {
-                      legend: {
-                        position: 'top',
-                      },
-                      tooltip: {
-                        callbacks: {
-                          label: function(context) {
-                            return `${context.dataset.label}: ${context.raw.toFixed(1)}%`;
+              <Fade in={!loading} timeout={1000}>
+                <Box sx={{ height: 400 }}>
+                  <Radar 
+                    ref={(ref) => registerChartRef('radar', ref)}
+                    data={radarData} 
+                    options={{
+                      scales: {
+                        r: {
+                          min: 0,
+                          max: 100,
+                          ticks: {
+                            stepSize: 20
+                          },
+                          pointLabels: {
+                            font: {
+                              size: 12
+                            }
                           }
                         }
+                      },
+                      plugins: {
+                        legend: {
+                          position: 'top',
+                        },
+                        tooltip: {
+                          callbacks: {
+                            title: function(context) {
+                              return context[0].label;
+                            },
+                            label: function(context) {
+                              let label = context.dataset.label || '';
+                              let value = context.raw.toFixed(1);
+                              
+                              // Add explanations based on the metric
+                              let explanation = '';
+                              switch(context.label) {
+                                case 'Cost Efficiency':
+                                  explanation = ` (Lower cost is better)`;
+                                  break;
+                                case 'Power Efficiency':
+                                  explanation = ` (Lower power usage is better)`;
+                                  break;
+                                case 'Latency':
+                                  explanation = ` (Lower latency is better)`;
+                                  break;
+                                case 'Oversubscription':
+                                  explanation = ` (Lower oversubscription is better)`;
+                                  break;
+                                case 'Rack Space':
+                                  explanation = ` (Less rack space is better)`;
+                                  break;
+                                case 'Cabling Complexity':
+                                  explanation = ` (Less cabling is better)`;
+                                  break;
+                                default:
+                                  break;
+                              }
+                              
+                              return `${label}: ${value}%${explanation}`;
+                            },
+                            afterLabel: function(context) {
+                              // Add actual values for each metric
+                              switch(context.label) {
+                                case 'Cost Efficiency':
+                                  return `Actual cost: ${formatCurrency(metrics.cost.total)}`;
+                                case 'Power Efficiency':
+                                  return `Actual power: ${formatPower(metrics.power.total)}`;
+                                case 'Latency':
+                                  return `Actual latency: ${metrics.latency.total.toFixed(2)} μs`;
+                                case 'Oversubscription':
+                                  return `Actual ratio: ${metrics.oversubscription.ratio}:1`;
+                                case 'Rack Space':
+                                  return `Actual space: ${metrics.rackSpace.totalRackUnits} U`;
+                                case 'Cabling Complexity':
+                                  return `Actual cables: ${metrics.cabling.total}`;
+                                default:
+                                  return '';
+                              }
+                            }
+                          },
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          titleFont: {
+                            weight: 'bold'
+                          },
+                          bodyFont: {
+                            size: 13
+                          },
+                          padding: 12,
+                          cornerRadius: 6
+                        }
+                      },
+                      maintainAspectRatio: false,
+                      animation: {
+                        duration: 1500,
+                        easing: 'easeOutQuart'
                       }
-                    },
-                    maintainAspectRatio: false
-                  }}
-                />
-              </Box>
+                    }}
+                  />
+                </Box>
+              </Fade>
             </Grid>
 
             {/* Device count chart */}
@@ -452,24 +704,62 @@ const TopologyMetrics = () => {
               <Typography variant="h6" gutterBottom>
                 Device Count
               </Typography>
-              <Box sx={{ height: 400 }}>
-                <Bar 
-                  data={deviceCountData} 
-                  options={{
-                    plugins: {
-                      legend: {
-                        display: false
+              <Fade in={!loading} timeout={1000} style={{ transitionDelay: '200ms' }}>
+                <Box sx={{ height: 400 }}>
+                  <Bar 
+                    ref={(ref) => registerChartRef('deviceCount', ref)}
+                    data={deviceCountData} 
+                    options={{
+                      plugins: {
+                        legend: {
+                          display: false
+                        },
+                        tooltip: {
+                          callbacks: {
+                            title: function(context) {
+                              return context[0].label;
+                            },
+                            label: function(context) {
+                              const label = context.dataset.label || '';
+                              const value = context.raw;
+                              
+                              if (context.label === 'Spine Switches') {
+                                return `${label}: ${value} (${(value / metrics.deviceCount.total * 100).toFixed(1)}% of total)`;
+                              } else {
+                                return `${label}: ${value} (${(value / metrics.deviceCount.total * 100).toFixed(1)}% of total)`;
+                              }
+                            },
+                            afterLabel: function(context) {
+                              if (context.label === 'Spine Switches') {
+                                const cost = metrics.cost.switches.spine;
+                                const costPerDevice = metrics.deviceCount.spines > 0 ? cost / metrics.deviceCount.spines : 0;
+                                return `Cost: ${formatCurrency(cost)} (${formatCurrency(costPerDevice)} per device)`;
+                              } else {
+                                const cost = metrics.cost.switches.leaf;
+                                const costPerDevice = metrics.deviceCount.leafs > 0 ? cost / metrics.deviceCount.leafs : 0;
+                                return `Cost: ${formatCurrency(cost)} (${formatCurrency(costPerDevice)} per device)`;
+                              }
+                            }
+                          },
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          padding: 12,
+                          cornerRadius: 6
+                        }
+                      },
+                      scales: {
+                        y: {
+                          beginAtZero: true
+                        }
+                      },
+                      maintainAspectRatio: false,
+                      animation: {
+                        duration: 1500,
+                        easing: 'easeOutQuart'
                       }
-                    },
-                    scales: {
-                      y: {
-                        beginAtZero: true
-                      }
-                    },
-                    maintainAspectRatio: false
-                  }}
-                />
-              </Box>
+                    }}
+                  />
+                </Box>
+              </Fade>
             </Grid>
 
             {/* Cost breakdown chart */}
@@ -477,30 +767,56 @@ const TopologyMetrics = () => {
               <Typography variant="h6" gutterBottom>
                 Cost Breakdown
               </Typography>
-              <Box sx={{ height: 400 }}>
-                <Doughnut 
-                  data={costData} 
-                  options={{
-                    plugins: {
-                      legend: {
-                        position: 'right'
-                      },
-                      tooltip: {
-                        callbacks: {
-                          label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${formatCurrency(value)} (${percentage}%)`;
-                          }
+              <Fade in={!loading} timeout={1000} style={{ transitionDelay: '300ms' }}>
+                <Box sx={{ height: 400 }}>
+                  <Doughnut 
+                    ref={(ref) => registerChartRef('cost', ref)}
+                    data={costData} 
+                    options={{
+                      plugins: {
+                        legend: {
+                          position: 'right'
+                        },
+                        tooltip: {
+                          callbacks: {
+                            title: function(context) {
+                              return 'Cost Breakdown';
+                            },
+                            label: function(context) {
+                              const label = context.label || '';
+                              const value = context.raw || 0;
+                              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                              const percentage = ((value / total) * 100).toFixed(1);
+                              return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+                            },
+                            afterLabel: function(context) {
+                              if (context.label === 'Spine Switches') {
+                                return `${metrics.deviceCount.spines} devices at ${formatCurrency(metrics.deviceCount.spines > 0 ? context.raw / metrics.deviceCount.spines : 0)} each`;
+                              } else if (context.label === 'Leaf Switches') {
+                                return `${metrics.deviceCount.leafs} devices at ${formatCurrency(metrics.deviceCount.leafs > 0 ? context.raw / metrics.deviceCount.leafs : 0)} each`;
+                              } else if (context.label === 'Optics') {
+                                const totalPorts = metrics.cabling.total;
+                                return `${totalPorts} optics at ${formatCurrency(totalPorts > 0 ? context.raw / totalPorts : 0)} each`;
+                              }
+                              return '';
+                            }
+                          },
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          padding: 12,
+                          cornerRadius: 6
                         }
+                      },
+                      maintainAspectRatio: false,
+                      animation: {
+                        animateRotate: true,
+                        animateScale: true,
+                        duration: 1500,
+                        easing: 'easeOutQuart'
                       }
-                    },
-                    maintainAspectRatio: false
-                  }}
-                />
-              </Box>
+                    }}
+                  />
+                </Box>
+              </Fade>
             </Grid>
 
             {/* Power usage chart */}
@@ -508,30 +824,50 @@ const TopologyMetrics = () => {
               <Typography variant="h6" gutterBottom>
                 Power Usage
               </Typography>
-              <Box sx={{ height: 400 }}>
-                <Doughnut 
-                  data={powerData} 
-                  options={{
-                    plugins: {
-                      legend: {
-                        position: 'right'
-                      },
-                      tooltip: {
-                        callbacks: {
-                          label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${formatPower(value)} (${percentage}%)`;
-                          }
+              <Fade in={!loading} timeout={1000} style={{ transitionDelay: '400ms' }}>
+                <Box sx={{ height: 400 }}>
+                  <Doughnut 
+                    ref={(ref) => registerChartRef('power', ref)}
+                    data={powerData} 
+                    options={{
+                      plugins: {
+                        legend: {
+                          position: 'right'
+                        },
+                        tooltip: {
+                          callbacks: {
+                            title: function(context) {
+                              return 'Power Usage Breakdown';
+                            },
+                            label: function(context) {
+                              const label = context.label || '';
+                              const value = context.raw || 0;
+                              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                              const percentage = ((value / total) * 100).toFixed(1);
+                              return `${label}: ${formatPower(value)} (${percentage}%)`;
+                            },
+                            afterLabel: function(context) {
+                              // Calculate annual energy cost (assuming $0.12 per kWh)
+                              const annualCost = (context.raw * 24 * 365 * 0.12 / 1000);
+                              return `Annual cost: ${formatCurrency(annualCost)}`;
+                            }
+                          },
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                          padding: 12,
+                          cornerRadius: 6
                         }
+                      },
+                      maintainAspectRatio: false,
+                      animation: {
+                        animateRotate: true,
+                        animateScale: true,
+                        duration: 1500,
+                        easing: 'easeOutQuart'
                       }
-                    },
-                    maintainAspectRatio: false
-                  }}
-                />
-              </Box>
+                    }}
+                  />
+                </Box>
+              </Fade>
             </Grid>
 
             {/* Additional metrics */}

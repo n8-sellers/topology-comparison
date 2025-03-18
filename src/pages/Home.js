@@ -10,13 +10,6 @@ import {
   Divider,
   Grid,
   Typography,
-  Paper,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
-  Tooltip,
   FormControl,
   InputLabel,
   Select,
@@ -25,14 +18,18 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  Fab,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  IconButton
 } from '@mui/material';
 import { Link } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import DeleteIcon from '@mui/icons-material/Delete';
+import TopologyCard from '../components/Home/TopologyCard';
 
 const Home = () => {
   const { 
@@ -52,28 +49,6 @@ const Home = () => {
   const [importError, setImportError] = useState('');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const fileInputRef = useRef(null);
-
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // Format currency
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(value);
-  };
 
   // Handle create new topology
   const handleCreateTopology = () => {
@@ -163,10 +138,10 @@ const Home = () => {
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <Typography variant="h4" gutterBottom>
-            Data Center Network Topology Analyzer
+            Network Topology Analyzer
           </Typography>
           <Typography variant="body1" paragraph>
-            Welcome to the Data Center Network Topology Analyzer. This tool helps you design, analyze, and compare different data center network topologies.
+            This tool helps you design, analyze, and compare different data center network topologies.
           </Typography>
         </Grid>
 
@@ -190,82 +165,22 @@ const Home = () => {
             <Divider />
             <CardContent>
               {topologies.length > 0 ? (
-                <List>
+                <Box>
                   {topologies.map((topology) => {
                     const metrics = calculateAllMetrics(topology);
                     return (
-                      <Paper key={topology.id} sx={{ mb: 2 }}>
-                        <ListItem 
-                          button 
-                          component={Link} 
-                          to="/visualization"
-                          onClick={() => handleEditTopology(topology)}
-                        >
-                          <ListItemText
-                            primary={topology.name}
-                            secondary={
-                              <React.Fragment>
-                                <Typography variant="body2" component="span" color="textSecondary">
-                                  {topology.description || 'No description'}
-                                </Typography>
-                                <br />
-                                <Typography variant="body2" component="span" color="textSecondary">
-                                  Last updated: {formatDate(topology.updatedAt)}
-                                </Typography>
-                                <br />
-                                <Typography variant="body2" component="span" color="textSecondary">
-                                  Devices: {metrics.deviceCount.total} | 
-                                  Cost: {formatCurrency(metrics.cost.total)} | 
-                                  Oversubscription: {metrics.oversubscription.ratio}:1
-                                </Typography>
-                              </React.Fragment>
-                            }
-                          />
-                          <ListItemSecondaryAction>
-                            <Tooltip title="Edit Topology">
-                              <IconButton 
-                                edge="end" 
-                                component={Link} 
-                                to="/builder"
-                                onClick={() => handleEditTopology(topology)}
-                              >
-                                <EditIcon />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="View Metrics">
-                              <IconButton 
-                                edge="end" 
-                                component={Link} 
-                                to="/visualization"
-                                onClick={() => handleEditTopology(topology)}
-                              >
-                                <VisibilityIcon />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title={comparisonTopologies.includes(topology.id) ? "Remove from Comparison" : "Add to Comparison"}>
-                              <IconButton 
-                                edge="end" 
-                                color={comparisonTopologies.includes(topology.id) ? "primary" : "default"}
-                                onClick={(e) => handleToggleComparison(topology.id, e)}
-                              >
-                                <CompareArrowsIcon />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete Topology">
-                              <IconButton 
-                                edge="end" 
-                                color="error"
-                                onClick={(e) => handleDeleteTopology(topology.id, e)}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </ListItemSecondaryAction>
-                        </ListItem>
-                      </Paper>
+                      <TopologyCard
+                        key={topology.id}
+                        topology={topology}
+                        metrics={metrics}
+                        onEdit={handleEditTopology}
+                        onDelete={handleDeleteTopology}
+                        onToggleComparison={handleToggleComparison}
+                        isInComparison={comparisonTopologies.includes(topology.id)}
+                      />
                     );
                   })}
-                </List>
+                </Box>
               ) : (
                 <Typography variant="body1" align="center">
                   No topologies found. Create a new one to get started.
@@ -275,7 +190,21 @@ const Home = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={4} sx={{ position: 'relative' }}>
+          <Fab 
+            color="primary" 
+            sx={{ 
+              position: 'fixed', 
+              bottom: 20, 
+              right: 20,
+              display: { xs: 'flex', md: 'none' }
+            }}
+            component={Link}
+            to="/builder"
+            onClick={handleCreateTopology}
+          >
+            <AddIcon />
+          </Fab>
           <Card>
             <CardHeader title="Quick Actions" />
             <Divider />

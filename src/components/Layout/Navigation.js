@@ -62,7 +62,7 @@ const Navigation = () => {
     >
       <Box sx={{ p: 2 }}>
         <Typography variant="h6" component="div">
-          DC Network Analyzer
+          Network Analyzer
         </Typography>
       </Box>
       <Divider />
@@ -119,13 +119,13 @@ const Navigation = () => {
                 <MenuIcon />
               </IconButton>
               <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-                DC Network Analyzer
+                Network Analyzer
               </Typography>
             </>
           ) : (
             <>
               <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-                Data Center Network Topology Analyzer
+                Network Topology Analyzer
               </Typography>
               <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
                 <IconButton color="inherit" onClick={toggleDarkMode} sx={{ ml: 1 }}>

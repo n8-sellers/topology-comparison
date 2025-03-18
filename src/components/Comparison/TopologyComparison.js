@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useTopology } from '../../context/TopologyContext';
 import { compareTopologies } from '../../services/CalculationService';
 import {
@@ -23,7 +23,11 @@ import {
   MenuItem,
   OutlinedInput,
   Checkbox,
-  ListItemText
+  ListItemText,
+  Tooltip,
+  Fade,
+  Skeleton,
+  IconButton
 } from '@mui/material';
 import {
   Chart as ChartJS,
@@ -31,12 +35,13 @@ import {
   LinearScale,
   BarElement,
   Title,
-  Tooltip,
+  Tooltip as ChartTooltip,
   Legend,
   RadialLinearScale,
   PointElement,
   LineElement
 } from 'chart.js';
+import InfoIcon from '@mui/icons-material/Info';
 import { Bar, Radar } from 'react-chartjs-2';
 
 // Register ChartJS components
@@ -45,7 +50,7 @@ ChartJS.register(
   LinearScale,
   BarElement,
   Title,
-  Tooltip,
+  ChartTooltip,
   Legend,
   RadialLinearScale,
   PointElement,
@@ -54,23 +59,35 @@ ChartJS.register(
 
 const TopologyComparison = () => {
   const { topologies, comparisonTopologies, toggleComparisonTopology } = useTopology();
-  const [selectedTopologies, setSelectedTopologies] = useState([]);
+  const [, setSelectedTopologies] = useState([]);
   const [comparisonResults, setComparisonResults] = useState(null);
   const [comparisonMetric, setComparisonMetric] = useState('cost');
+  const [loading, setLoading] = useState(true);
+  const chartRefs = useRef({});
+
+  // Register chart references
+  const registerChartRef = (chartName, ref) => {
+    chartRefs.current[chartName] = ref;
+  };
 
   // Load selected topologies when comparisonTopologies changes
   useEffect(() => {
+    setLoading(true);
     const selected = topologies.filter(topology => 
       comparisonTopologies.includes(topology.id)
     );
     setSelectedTopologies(selected);
     
-    if (selected.length > 0) {
-      const results = compareTopologies(selected);
-      setComparisonResults(results);
-    } else {
-      setComparisonResults(null);
-    }
+    // Add a slight delay to show loading animations
+    setTimeout(() => {
+      if (selected.length > 0) {
+        const results = compareTopologies(selected);
+        setComparisonResults(results);
+      } else {
+        setComparisonResults(null);
+      }
+      setLoading(false);
+    }, 600);
   }, [topologies, comparisonTopologies]);
 
   // Handle topology selection change
@@ -450,88 +467,274 @@ const TopologyComparison = () => {
               </FormControl>
             </Grid>
             
-            {comparisonResults && comparisonResults.length > 0 ? (
+            {loading ? (
+              <>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="h6" gutterBottom>
+                    <Skeleton width="50%" />
+                  </Typography>
+                  <Skeleton variant="rectangular" height={400} />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="h6" gutterBottom>
+                    <Skeleton width="50%" />
+                  </Typography>
+                  <Skeleton variant="rectangular" height={400} />
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="h6" gutterBottom>
+                    <Skeleton width="40%" />
+                  </Typography>
+                  <Skeleton variant="rectangular" height={300} />
+                </Grid>
+              </>
+            ) : comparisonResults && comparisonResults.length > 0 ? (
               <>
                 {/* Radar chart for overall comparison */}
                 <Grid item xs={12} md={6}>
-                  <Typography variant="h6" gutterBottom>
-                    Overall Comparison
-                  </Typography>
-                  <Box sx={{ height: 400 }}>
-                    <Radar 
-                      data={radarData} 
-                      options={{
-                        scales: {
-                          r: {
-                            min: 0,
-                            max: 100,
-                            ticks: {
-                              stepSize: 20
-                            }
-                          }
-                        },
-                        plugins: {
-                          legend: {
-                            position: 'top',
-                          },
-                          tooltip: {
-                            callbacks: {
-                              label: function(context) {
-                                return `${context.dataset.label}: ${context.raw.toFixed(1)}%`;
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="h6" gutterBottom>
+                      Overall Comparison
+                    </Typography>
+                    <Tooltip 
+                      title={
+                        <React.Fragment>
+                          <Typography color="inherit" variant="subtitle2">How to read this chart</Typography>
+                          <Typography variant="body2">
+                            This radar chart shows a normalized comparison (0-100%) of key metrics across all topologies.
+                            Higher values (further from center) indicate better performance in that category.
+                            For metrics where lower values are better (like cost), the scale is inverted so higher values
+                            on the chart still represent better performance.
+                          </Typography>
+                        </React.Fragment>
+                      }
+                      arrow
+                    >
+                      <IconButton size="small" sx={{ ml: 1, mb: 1 }}>
+                        <InfoIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                  <Fade in={!loading} timeout={1000}>
+                    <Box sx={{ height: 400 }}>
+                      <Radar 
+                        ref={(ref) => registerChartRef('radar', ref)}
+                        data={radarData} 
+                        options={{
+                          scales: {
+                            r: {
+                              min: 0,
+                              max: 100,
+                              ticks: {
+                                stepSize: 20
+                              },
+                              pointLabels: {
+                                font: {
+                                  size: 12
+                                }
                               }
                             }
+                          },
+                          plugins: {
+                            legend: {
+                              position: 'top',
+                            },
+                            tooltip: {
+                              callbacks: {
+                                title: function(context) {
+                                  return context[0].label;
+                                },
+                                label: function(context) {
+                                  let label = context.dataset.label || '';
+                                  let value = context.raw.toFixed(1);
+                                  
+                                  // Add explanations based on the metric
+                                  let explanation = '';
+                                  switch(context.label) {
+                                    case 'Cost Efficiency':
+                                      explanation = ` (higher is better)`;
+                                      break;
+                                    case 'Power Efficiency':
+                                      explanation = ` (higher is better)`;
+                                      break;
+                                    case 'Latency':
+                                      explanation = ` (higher is better)`;
+                                      break;
+                                    case 'Oversubscription':
+                                      explanation = ` (higher is better)`;
+                                      break;
+                                    case 'Rack Space':
+                                      explanation = ` (higher is better)`;
+                                      break;
+                                    case 'Cabling Complexity':
+                                      explanation = ` (higher is better)`;
+                                      break;
+                                    default:
+                                      break;
+                                  }
+                                  
+                                  return `${label}: ${value}%${explanation}`;
+                                },
+                                afterLabel: function(context) {
+                                  const topologyIndex = comparisonResults.findIndex(
+                                    result => result.name === context.dataset.label
+                                  );
+                                  
+                                  if (topologyIndex === -1) return '';
+                                  
+                                  const metrics = comparisonResults[topologyIndex].metrics;
+                                  
+                                  // Add actual values for each metric
+                                  switch(context.label) {
+                                    case 'Cost Efficiency':
+                                      return `Actual cost: ${formatCurrency(metrics.cost.total)}`;
+                                    case 'Power Efficiency':
+                                      return `Actual power: ${formatPower(metrics.power.total)}`;
+                                    case 'Latency':
+                                      return `Actual latency: ${metrics.latency.total.toFixed(2)} μs`;
+                                    case 'Oversubscription':
+                                      return `Actual ratio: ${metrics.oversubscription.ratio}:1`;
+                                    case 'Rack Space':
+                                      return `Actual space: ${metrics.rackSpace.totalRackUnits} U`;
+                                    case 'Cabling Complexity':
+                                      return `Actual cables: ${metrics.cabling.total}`;
+                                    default:
+                                      return '';
+                                  }
+                                }
+                              },
+                              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                              titleFont: {
+                                weight: 'bold'
+                              },
+                              bodyFont: {
+                                size: 13
+                              },
+                              padding: 12,
+                              cornerRadius: 6
+                            }
+                          },
+                          maintainAspectRatio: false,
+                          animation: {
+                            duration: 1500,
+                            easing: 'easeOutQuart'
                           }
-                        },
-                        maintainAspectRatio: false
-                      }}
-                    />
-                  </Box>
+                        }}
+                      />
+                    </Box>
+                  </Fade>
                 </Grid>
                 
                 {/* Bar chart for selected metric */}
                 <Grid item xs={12} md={6}>
-                  <Typography variant="h6" gutterBottom>
-                    {comparisonMetric.charAt(0).toUpperCase() + comparisonMetric.slice(1)} Comparison
-                  </Typography>
-                  <Box sx={{ height: 400 }}>
-                    <Bar 
-                      data={barData} 
-                      options={{
-                        plugins: {
-                          legend: {
-                            position: 'top',
-                          },
-                          tooltip: {
-                            callbacks: {
-                              label: function(context) {
-                                const label = context.dataset.label || '';
-                                const value = context.raw || 0;
-                                
-                                if (comparisonMetric === 'cost') {
-                                  return `${label}: ${formatCurrency(value)}`;
-                                } else if (comparisonMetric === 'power') {
-                                  return `${label}: ${formatPower(value)}`;
-                                } else {
-                                  return `${label}: ${formatNumber(value)}`;
-                                }
-                              }
-                            }
-                          }
-                        },
-                        responsive: true,
-                        scales: {
-                          x: {
-                            stacked: false,
-                          },
-                          y: {
-                            stacked: false,
-                            beginAtZero: true
-                          }
-                        },
-                        maintainAspectRatio: false
-                      }}
-                    />
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="h6" gutterBottom>
+                      {comparisonMetric.charAt(0).toUpperCase() + comparisonMetric.slice(1)} Comparison
+                    </Typography>
+                    <Tooltip 
+                      title={
+                        <React.Fragment>
+                          <Typography color="inherit" variant="subtitle2">Metric details</Typography>
+                          <Typography variant="body2">
+                            {comparisonMetric === 'cost' && 'Shows the cost breakdown across different components.'}
+                            {comparisonMetric === 'power' && 'Shows the power usage across different components.'}
+                            {comparisonMetric === 'devices' && 'Shows the device count by type.'}
+                            {comparisonMetric === 'oversubscription' && 'Shows the oversubscription ratio for each topology.'}
+                            {comparisonMetric === 'latency' && 'Shows the estimated latency for each topology.'}
+                            {comparisonMetric === 'rackspace' && 'Shows the rack space requirements for each topology.'}
+                            {comparisonMetric === 'cabling' && 'Shows the cabling requirements for each topology.'}
+                          </Typography>
+                        </React.Fragment>
+                      }
+                      arrow
+                    >
+                      <IconButton size="small" sx={{ ml: 1, mb: 1 }}>
+                        <InfoIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
+                  <Fade in={!loading} timeout={1000} style={{ transitionDelay: '200ms' }}>
+                    <Box sx={{ height: 400 }}>
+                      <Bar 
+                        ref={(ref) => registerChartRef('bar', ref)}
+                        data={barData} 
+                        options={{
+                          plugins: {
+                            legend: {
+                              position: 'top',
+                            },
+                            tooltip: {
+                              callbacks: {
+                                title: function(context) {
+                                  return context[0].dataset.label + ' - ' + context[0].label;
+                                },
+                                label: function(context) {
+                                  const label = context.dataset.label || '';
+                                  const value = context.raw || 0;
+                                  
+                                  if (comparisonMetric === 'cost') {
+                                    return `${label}: ${formatCurrency(value)}`;
+                                  } else if (comparisonMetric === 'power') {
+                                    return `${label}: ${formatPower(value)}`;
+                                  } else {
+                                    return `${label}: ${formatNumber(value)}`;
+                                  }
+                                },
+                                afterLabel: function(context) {
+                                  // Show percentage of total for this topology
+                                  const index = context.dataIndex;
+                                  
+                                  if (comparisonMetric === 'cost') {
+                                    // Get the total cost for this topology
+                                    const totalCost = barData.datasets.reduce((sum, dataset) => {
+                                      return sum + dataset.data[index];
+                                    }, 0);
+                                    
+                                    const percentage = (context.raw / totalCost * 100).toFixed(1);
+                                    return `${percentage}% of total cost`;
+                                  } else if (comparisonMetric === 'power') {
+                                    // Get the total power for this topology
+                                    const totalPower = barData.datasets.reduce((sum, dataset) => {
+                                      return sum + dataset.data[index];
+                                    }, 0);
+                                    
+                                    const percentage = (context.raw / totalPower * 100).toFixed(1);
+                                    return `${percentage}% of total power usage`;
+                                  }
+                                  
+                                  return '';
+                                }
+                              },
+                              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                              titleFont: {
+                                weight: 'bold'
+                              },
+                              bodyFont: {
+                                size: 13
+                              },
+                              padding: 12,
+                              cornerRadius: 6
+                            }
+                          },
+                          responsive: true,
+                          scales: {
+                            x: {
+                              stacked: false,
+                            },
+                            y: {
+                              stacked: false,
+                              beginAtZero: true
+                            }
+                          },
+                          maintainAspectRatio: false,
+                          animation: {
+                            duration: 1200,
+                            easing: 'easeOutQuart'
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Fade>
                 </Grid>
                 
                 {/* Comparison table */}
@@ -539,33 +742,127 @@ const TopologyComparison = () => {
                   <Typography variant="h6" gutterBottom>
                     Detailed Comparison
                   </Typography>
-                  <TableContainer component={Paper}>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          {tableData.headers.map((header, index) => (
-                            <TableCell key={index} align={index === 0 ? 'left' : 'right'}>
-                              <Typography variant="subtitle2">{header}</Typography>
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {tableData.rows.map((row, rowIndex) => (
-                          <TableRow key={rowIndex}>
-                            <TableCell>
-                              <Typography variant="body2">{row.name}</Typography>
-                            </TableCell>
-                            {row.values.map((value, valueIndex) => (
-                              <TableCell key={valueIndex} align="right">
-                                <Typography variant="body2">{value}</Typography>
+                  <Fade in={!loading} timeout={1000} style={{ transitionDelay: '300ms' }}>
+                    <TableContainer component={Paper} sx={{ maxHeight: 600, overflow: 'auto' }}>
+                      <Table stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            {tableData.headers.map((header, index) => (
+                              <TableCell 
+                                key={index} 
+                                align={index === 0 ? 'left' : 'right'}
+                                sx={{ 
+                                  backgroundColor: theme => theme.palette.background.paper,
+                                  fontWeight: 'bold'
+                                }}
+                              >
+                                <Typography variant="subtitle2">{header}</Typography>
                               </TableCell>
                             ))}
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                          {tableData.rows.map((row, rowIndex) => {
+                            // Determine if this is a category header row
+                            const isCategory = ['Total Cost', 'Total Power', 'Total Devices', 'Oversubscription', 'Latency', 'Rack Space', 'Total Cables'].includes(row.name);
+                            
+                            return (
+                              <TableRow 
+                                key={rowIndex}
+                                sx={{
+                                  backgroundColor: isCategory 
+                                    ? theme => theme.palette.action.hover 
+                                    : 'inherit',
+                                  '&:hover': {
+                                    backgroundColor: theme => theme.palette.action.selected,
+                                  }
+                                }}
+                              >
+                                <TableCell>
+                                  <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                      fontWeight: isCategory ? 'bold' : 'normal',
+                                    }}
+                                  >
+                                    {row.name}
+                                  </Typography>
+                                </TableCell>
+                                {row.values.map((value, valueIndex) => {
+                                  // Find min and max values for highlighting
+                                  let bestValue = null;
+                                  let worstValue = null;
+                                  
+                                  if (isCategory) {
+                                    // For these metrics, lower is better
+                                    if (['Total Cost', 'Total Power', 'Oversubscription', 'Latency', 'Rack Space', 'Total Cables'].includes(row.name)) {
+                                      // Extract numeric values for comparison
+                                      const numericValues = row.values.map(v => {
+                                        if (row.name === 'Total Cost') {
+                                          return parseFloat(v.replace(/[^0-9.-]+/g, ''));
+                                        } else if (row.name === 'Total Power') {
+                                          return parseFloat(v.replace(/[^0-9.-]+/g, ''));
+                                        } else if (row.name === 'Oversubscription') {
+                                          return parseFloat(v.split(':')[0]);
+                                        } else if (row.name === 'Latency') {
+                                          return parseFloat(v.split(' ')[0]);
+                                        } else if (row.name === 'Rack Space') {
+                                          return parseFloat(v.split(' ')[0]);
+                                        } else if (row.name === 'Total Cables') {
+                                          return parseFloat(v.replace(/[^0-9.-]+/g, ''));
+                                        }
+                                        return 0;
+                                      });
+                                      
+                                      bestValue = Math.min(...numericValues);
+                                      worstValue = Math.max(...numericValues);
+                                    } 
+                                    // For devices, it depends on the context (could be higher or lower)
+                                  }
+                                  
+                                  // Determine if this is the best value
+                                  let isBest = false;
+                                  let isWorst = false;
+                                  
+                                  if (bestValue !== null && worstValue !== null) {
+                                    const numericValue = parseFloat(value.replace(/[^0-9.-]+/g, ''));
+                                    isBest = numericValue === bestValue && row.values.length > 1;
+                                    isWorst = numericValue === worstValue && row.values.length > 1 && bestValue !== worstValue;
+                                  }
+                                  
+                                  return (
+                                    <TableCell 
+                                      key={valueIndex} 
+                                      align="right"
+                                      sx={{
+                                        color: isBest 
+                                          ? theme => theme.palette.success.main
+                                          : isWorst 
+                                            ? theme => theme.palette.error.main 
+                                            : 'inherit',
+                                        fontWeight: isBest || isWorst ? 'bold' : 'normal'
+                                      }}
+                                    >
+                                      <Tooltip 
+                                        title={isBest ? "Best value" : isWorst ? "Worst value" : ""}
+                                        placement="top"
+                                        arrow
+                                        disableHoverListener={!isBest && !isWorst}
+                                      >
+                                        <Typography variant="body2">
+                                          {value}
+                                        </Typography>
+                                      </Tooltip>
+                                    </TableCell>
+                                  );
+                                })}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Fade>
                 </Grid>
               </>
             ) : (

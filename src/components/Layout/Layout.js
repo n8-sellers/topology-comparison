@@ -16,10 +16,10 @@ const Layout = ({ children }) => {
         <Container maxWidth="lg">
           <Box sx={{ textAlign: 'center' }}>
             <Box sx={{ my: 1 }}>
-              Data Center Network Topology Analyzer
+              Network Topology Analyzer
             </Box>
             <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>
-              © {new Date().getFullYear()} - A tool for comparing data center network topologies
+              © {new Date().getFullYear()} - A tool for designing and comparing network topologies
             </Box>
           </Box>
         </Container>

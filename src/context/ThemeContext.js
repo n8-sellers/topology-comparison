@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { lightTheme, darkTheme } from '../theme';
 
 // Create the theme context
 const ThemeContext = createContext();
@@ -8,39 +9,7 @@ const ThemeContext = createContext();
 // Custom hook to use the theme context
 export const useTheme = () => useContext(ThemeContext);
 
-// Light theme
-const lightTheme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#dc004e',
-    },
-    background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
-    },
-  },
-});
-
-// Dark theme
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#90caf9',
-    },
-    secondary: {
-      main: '#f48fb1',
-    },
-    background: {
-      default: '#121212',
-      paper: '#1e1e1e',
-    },
-  },
-});
+// We're now importing our custom themes from ../theme
 
 export const ThemeProvider = ({ children }) => {
   // Check if dark mode is stored in local storage
