@@ -215,10 +215,10 @@ const commonSettings = {
         root: {
           borderRadius: 12,
           boxShadow: '0px 2px 12px rgba(0, 0, 0, 0.08)',
-          transition: 'box-shadow 0.3s ease, transform 0.3s ease',
+          transition: 'box-shadow 0.3s ease',
           '&:hover': {
             boxShadow: '0px 6px 16px rgba(0, 0, 0, 0.12)',
-            transform: 'translateY(-4px)',
+            // Removed transform: 'translateY(-4px)' to prevent vertical movement
           },
         },
       },

@@ -26,7 +26,8 @@ const baseTemplate: Topology = {
     },
     leafConfig: {
       portCount: 48,
-      downlinkSpeed: '100G'
+      downlinkSpeed: '100G',
+      breakoutMode: '1x100G'  // Default to no breakout
     },
     
     // Advanced configuration
@@ -102,7 +103,8 @@ const smallLeafSpine = {
     },
     leafConfig: {
       portCount: 48,
-      downlinkSpeed: '25G'
+      downlinkSpeed: '25G',
+      breakoutMode: '1x25G'  // Default to no breakout
     }
   }
 };
@@ -124,7 +126,8 @@ const mediumLeafSpine = {
     },
     leafConfig: {
       portCount: 48,
-      downlinkSpeed: '100G'
+      downlinkSpeed: '100G',
+      breakoutMode: '1x100G'  // Default to no breakout
     }
   }
 };
@@ -146,7 +149,8 @@ const largeLeafSpine = {
     },
     leafConfig: {
       portCount: 64,
-      downlinkSpeed: '100G'
+      downlinkSpeed: '100G',
+      breakoutMode: '1x100G'  // Default to no breakout
     }
   }
 };
@@ -168,7 +172,8 @@ const threeTierClos = {
     },
     leafConfig: {
       portCount: 64,
-      downlinkSpeed: '100G'
+      downlinkSpeed: '100G',
+      breakoutMode: '1x100G'  // Default to no breakout
     }
   }
 };
@@ -190,7 +195,8 @@ const highDensityBreakout = {
     },
     leafConfig: {
       portCount: 48,
-      downlinkSpeed: '100G'
+      downlinkSpeed: '100G',
+      breakoutMode: '1x100G'  // Default to no breakout
     }
   }
 };
@@ -213,7 +219,8 @@ const disjointedSpines = {
     },
     leafConfig: {
       portCount: 48,
-      downlinkSpeed: '100G'
+      downlinkSpeed: '100G',
+      breakoutMode: '1x100G'  // Default to no breakout
     }
   }
 };
@@ -236,7 +243,8 @@ const railOptimized = {
     },
     leafConfig: {
       portCount: 48,
-      downlinkSpeed: '100G'
+      downlinkSpeed: '100G',
+      breakoutMode: '1x100G'  // Default to no breakout
     }
   }
 };

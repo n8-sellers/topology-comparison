@@ -51,6 +51,7 @@ export interface SpineConfig {
 export interface LeafConfig {
   portCount: number;
   downlinkSpeed: string;
+  breakoutMode: string;  // Mode for breaking out downlink ports (e.g., 1x100G, 4x25G)
 }
 
 export interface BreakoutOptions {

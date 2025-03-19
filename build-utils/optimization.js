@@ -5,6 +5,9 @@
  * - Validates the build output
  * - Applies additional performance optimizations
  * - Generates a build report
+ * 
+ * NOTE: This project uses TypeScript 4.9.5 for compatibility with React Scripts 5.0.1.
+ * If you encounter TypeScript errors during build, verify version compatibility.
  */
 
 const fs = require('fs');

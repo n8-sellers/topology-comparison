@@ -11,11 +11,6 @@ import {
   MenuItem,
   Select,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableRow,
   Typography,
   Paper,
   Button,
@@ -23,6 +18,7 @@ import {
   Tooltip,
   Chip
 } from '@mui/material';
+import DeviceSpecificationVisualizer from './DeviceSpecificationVisualizer';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -533,39 +529,15 @@ const DeviceSelection = ({ topology, setTopology }) => {
     }
   };
 
-  // Render device specifications table
+  // Render device specifications
   const renderSpecificationsTable = (device) => {
     if (!device) return null;
     
-    // Define which specifications to show and in what order
-    const specsToShow = [
-      { key: 'portConfigurations', label: 'Port Configurations' },
-      { key: 'downlinkOptions', label: 'Downlink Options' },
-      { key: 'powerConsumption', label: 'Power Consumption' },
-      { key: 'rackUnits', label: 'Rack Units' },
-      { key: 'cost', label: 'Cost' },
-      { key: 'thermalOutput', label: 'Thermal Output' },
-      { key: 'weight', label: 'Weight' },
-      { key: 'dimensions', label: 'Dimensions (H×W×D)' }
-    ];
-    
     return (
-      <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
-        <Table size="small">
-          <TableBody>
-            {specsToShow.map((spec) => (
-              device[spec.key] ? (
-                <TableRow key={spec.key}>
-                  <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', width: '40%' }}>
-                    {spec.label}
-                  </TableCell>
-                  <TableCell>{formatSpecValue(spec.key, device[spec.key])}</TableCell>
-                </TableRow>
-              ) : null
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DeviceSpecificationVisualizer 
+        device={device} 
+        deviceType={device.downlinkOptions ? 'leaf' : 'spine'} 
+      />
     );
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTopology } from '../../context/TopologyContext';
 import { exportTopology } from '../../utils/importExport';
 import DeviceSelection from './DeviceSelection';
@@ -45,6 +45,18 @@ function TabPanel(props) {
   );
 }
 
+// Helper function to snap to common network fabric sizes
+const snapToCommonValue = (value, commonValues, snapThreshold = 5) => {
+  // Find the closest common value within threshold
+  for (const commonValue of commonValues) {
+    if (Math.abs(value - commonValue) <= snapThreshold) {
+      return commonValue;
+    }
+  }
+  // Not near a common value, return the original
+  return value;
+};
+
 const TopologyForm = () => {
   const { 
     currentTopology, 
@@ -57,6 +69,10 @@ const TopologyForm = () => {
   const [topology, setTopology] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [validationErrors, setValidationErrors] = useState({});
+  
+  // Define common values for spine and leaf switches
+  const spineCommonValues = useMemo(() => [1, 2, 4, 8, 16, 32, 64, 128, 256, 384, 512], []);
+  const leafCommonValues = useMemo(() => [2, 4, 8, 16, 32, 64, 128, 256, 384, 512], []);
   
   // Initialize form with current topology or create a new one
   useEffect(() => {
@@ -82,15 +98,33 @@ const TopologyForm = () => {
     });
   };
   
+  // Ensure minimum tiers based on spine and leaf counts
+  const ensureMinimumTiers = (config) => {
+    // Only enforce minimum tier count when spine count is greater than 0
+    // This allows for single-tier (leaf-only) designs
+    if (config.numSpines > 0 && config.numLeafs > 0 && config.numTiers < 2) {
+      return {
+        ...config,
+        numTiers: 2
+      };
+    }
+    return config;
+  };
+  
   // Handle configuration field changes
   const handleConfigChange = (field, value) => {
-    const updatedTopology = {
+    let updatedTopology = {
       ...topology,
       configuration: {
         ...topology.configuration,
         [field]: value
       }
     };
+    
+    // Update tier count based on spine and leaf configuration
+    if (field === 'numSpines' || field === 'numLeafs') {
+      updatedTopology.configuration = ensureMinimumTiers(updatedTopology.configuration);
+    }
     
     // Validate the updated topology
     validateTopology(updatedTopology);
@@ -151,9 +185,9 @@ const TopologyForm = () => {
       errors.numLeafs = `Leaf count exceeds maximum of ${maxLeafSwitches} supported by current spine configuration`;
     }
     
-    // Check if spine count is valid
-    if (topologyToValidate.configuration.numSpines < 1) {
-      errors.numSpines = 'Spine count must be at least 1';
+    // Check if spine count is valid - only for multi-tier topologies
+    if (topologyToValidate.configuration.numTiers > 1 && topologyToValidate.configuration.numSpines < 1) {
+      errors.numSpines = 'Spine count must be at least 1 for multi-tier topologies';
     }
     
     // Check if leaf count is valid
@@ -273,24 +307,32 @@ const TopologyForm = () => {
         <TabPanel value={tabValue} index={0}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <Typography gutterBottom>Number of Spine Switches</Typography>
+              <Typography gutterBottom>
+                Number of Spine Switches
+                {topology.configuration.numTiers === 1 && (
+                  <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                    (Not applicable for single-tier designs)
+                  </Typography>
+                )}
+              </Typography>
               <Slider
                 value={topology.configuration.numSpines}
-                onChange={(e, value) => handleConfigChange('numSpines', value)}
+                onChange={(e, value) => {
+                  const snappedValue = snapToCommonValue(value, spineCommonValues);
+                  handleConfigChange('numSpines', snappedValue);
+                }}
                 step={1}
-                marks={[
-                  { value: 1, label: '1' },
-                  { value: 128, label: '128' },
-                  { value: 256, label: '256' },
-                  { value: 384, label: '384' },
-                  { value: 512, label: '512' }
-                ]}
-                min={1}
+                marks={spineCommonValues.map(value => ({
+                  value,
+                  label: value === 1 || value % 128 === 0 ? value.toString() : ''
+                }))}
+                min={0}
                 max={512}
                 valueLabelDisplay="auto"
+                disabled={topology.configuration.numTiers === 1}
               />
               <TextField
-                value={topology.configuration.numSpines}
+                value={topology.configuration.numTiers === 1 ? 0 : topology.configuration.numSpines}
                 onChange={(e) => handleConfigChange('numSpines', parseInt(e.target.value) || 0)}
                 type="number"
                 InputLabelProps={{
@@ -300,6 +342,7 @@ const TopologyForm = () => {
                 size="small"
                 error={!!validationErrors.numSpines}
                 helperText={validationErrors.numSpines}
+                disabled={topology.configuration.numTiers === 1}
               />
             </Grid>
             
@@ -307,15 +350,15 @@ const TopologyForm = () => {
               <Typography gutterBottom>Number of Leaf Switches</Typography>
               <Slider
                 value={topology.configuration.numLeafs}
-                onChange={(e, value) => handleConfigChange('numLeafs', value)}
+                onChange={(e, value) => {
+                  const snappedValue = snapToCommonValue(value, leafCommonValues);
+                  handleConfigChange('numLeafs', snappedValue);
+                }}
                 step={1}
-                marks={[
-                  { value: 2, label: '2' },
-                  { value: 128, label: '128' },
-                  { value: 256, label: '256' },
-                  { value: 384, label: '384' },
-                  { value: 512, label: '512' }
-                ]}
+                marks={leafCommonValues.map(value => ({
+                  value,
+                  label: value === 2 || value % 128 === 0 ? value.toString() : ''
+                }))}
                 min={2}
                 max={512}
                 valueLabelDisplay="auto"
@@ -338,7 +381,14 @@ const TopologyForm = () => {
               <Typography gutterBottom>Number of Tiers</Typography>
               <Slider
                 value={topology.configuration.numTiers}
-                onChange={(e, value) => handleConfigChange('numTiers', value)}
+                onChange={(e, value) => {
+                  // Enforce minimum tier value of 2 when spine switches exist
+                  if (topology.configuration.numSpines > 0 && value < 2) {
+                    handleConfigChange('numTiers', 2);
+                  } else {
+                    handleConfigChange('numTiers', value);
+                  }
+                }}
                 step={1}
                 marks
                 min={1}
@@ -347,20 +397,42 @@ const TopologyForm = () => {
               />
               <TextField
                 value={topology.configuration.numTiers}
-                onChange={(e) => handleConfigChange('numTiers', parseInt(e.target.value) || 0)}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 0;
+                  // Enforce minimum tier value of 2 when spine switches exist
+                  if (topology.configuration.numSpines > 0 && value < 2) {
+                    handleConfigChange('numTiers', 2);
+                  } else {
+                    handleConfigChange('numTiers', value);
+                  }
+                }}
                 type="number"
                 InputLabelProps={{
                   shrink: true,
                 }}
+                inputProps={{
+                  min: topology.configuration.numSpines > 0 ? 2 : 1,
+                  max: 3
+                }}
                 margin="dense"
                 size="small"
                 error={!!validationErrors.numTiers}
-                helperText={validationErrors.numTiers}
+                helperText={validationErrors.numTiers || 
+                  (topology.configuration.numSpines > 0 ? 
+                  "Minimum tier count is 2 when spine switches are present." : 
+                  "Single-tier (leaf only) designs are allowed when spine count is 0.")}
               />
             </Grid>
             
             <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>Spine Switch Configuration</Typography>
+              <Typography variant="h6" gutterBottom>
+                Spine Switch Configuration
+                {topology.configuration.numTiers === 1 && (
+                  <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                    (Not applicable for single-tier designs)
+                  </Typography>
+                )}
+              </Typography>
               <Box sx={{ mb: 3 }}>
                 <Typography gutterBottom>Spine Switch Port Count</Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -371,6 +443,7 @@ const TopologyForm = () => {
                     onChange={(e) => handleNestedConfigChange('spineConfig', 'portCount', parseInt(e.target.value))}
                     SelectProps={{ native: true }}
                     sx={{ mr: 2, width: 120 }}
+                    disabled={topology.configuration.numTiers === 1}
                   >
                     <option value={32}>32 ports</option>
                     <option value={64}>64 ports</option>
@@ -386,6 +459,7 @@ const TopologyForm = () => {
                     onChange={(e) => handleNestedConfigChange('spineConfig', 'portSpeed', e.target.value)}
                     SelectProps={{ native: true }}
                     sx={{ mr: 2, width: 120 }}
+                    disabled={topology.configuration.numTiers === 1}
                   >
                     <option value="400G">400G</option>
                     <option value="800G">800G</option>
@@ -403,6 +477,7 @@ const TopologyForm = () => {
                       onChange={(e) => handleNestedConfigChange('spineConfig', 'breakoutMode', e.target.value)}
                       SelectProps={{ native: true }}
                       sx={{ mr: 2, width: 120 }}
+                      disabled={topology.configuration.numTiers === 1}
                     >
                       {topology.configuration.breakoutOptions[topology.configuration.spineConfig.portSpeed].map((option) => (
                         <option key={option.type} value={option.type}>
@@ -505,11 +580,16 @@ const TopologyForm = () => {
                     label="Port Speed"
                     value={topology.configuration.leafConfig?.downlinkSpeed || '100G'}
                     onChange={(e) => {
+                      const newSpeed = e.target.value;
+                      // Get the first available breakout mode for this speed
+                      const firstBreakoutMode = topology.configuration.breakoutOptions[newSpeed]?.[0]?.type || `1x${newSpeed}`;
+                      
                       const updatedConfig = { 
                         ...topology.configuration,
                         leafConfig: {
                           ...topology.configuration.leafConfig,
-                          downlinkSpeed: e.target.value
+                          downlinkSpeed: newSpeed,
+                          breakoutMode: firstBreakoutMode
                         }
                       };
                       setTopology({
@@ -535,6 +615,83 @@ const TopologyForm = () => {
                     </Typography>
                   </Tooltip>
                 </Box>
+                
+                <Typography gutterBottom>Breakout Mode</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  {topology.configuration.breakoutOptions && 
+                   topology.configuration.breakoutOptions[topology.configuration.leafConfig.downlinkSpeed] ? (
+                    <TextField
+                      select
+                      label="Breakout Mode"
+                      value={topology.configuration.leafConfig.breakoutMode || `1x${topology.configuration.leafConfig.downlinkSpeed}`}
+                      onChange={(e) => {
+                        const updatedConfig = { 
+                          ...topology.configuration,
+                          leafConfig: {
+                            ...topology.configuration.leafConfig,
+                            breakoutMode: e.target.value
+                          }
+                        };
+                        setTopology({
+                          ...topology,
+                          configuration: updatedConfig
+                        });
+                      }}
+                      SelectProps={{ native: true }}
+                      sx={{ mr: 2, width: 120 }}
+                    >
+                      {topology.configuration.breakoutOptions[topology.configuration.leafConfig.downlinkSpeed].map((option) => (
+                        <option key={option.type} value={option.type}>
+                          {option.type}
+                        </option>
+                      ))}
+                    </TextField>
+                  ) : (
+                    <Typography color="error">
+                      Breakout options not available for {topology.configuration.leafConfig.downlinkSpeed}
+                    </Typography>
+                  )}
+                  
+                  <Tooltip title="Breakout modes allow a single physical port to be split into multiple logical ports. For example, a 100G port can be broken out into 4x25G ports.">
+                    <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                      <InfoIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                      Configure how downstream ports are broken out
+                    </Typography>
+                  </Tooltip>
+                </Box>
+                
+                {/* Maximum server connections calculation */}
+                {(() => {
+                  const { portCount, downlinkSpeed, breakoutMode } = topology.configuration.leafConfig;
+                  
+                  // Check if breakoutOptions exists and has the right structure
+                  if (!topology.configuration.breakoutOptions || 
+                      !topology.configuration.breakoutOptions[downlinkSpeed]) {
+                    return null;
+                  }
+                  
+                  const breakoutOption = topology.configuration.breakoutOptions[downlinkSpeed].find(
+                    option => option.type === breakoutMode
+                  );
+                  const breakoutFactor = breakoutOption ? breakoutOption.factor : 1;
+                  
+                  // Calculate total server-facing ports
+                  // For leaf switches, we need to subtract the ports used for uplinks
+                  const uplinkPorts = topology.configuration.numTiers > 1 ? topology.configuration.numSpines : 0;
+                  const availableDownlinkPorts = Math.max(0, portCount - uplinkPorts);
+                  const maxServerConnections = availableDownlinkPorts * breakoutFactor;
+                  
+                  return (
+                    <Box sx={{ mt: 2, p: 1, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                      <Typography variant="subtitle2">
+                        Maximum Server Connections: {maxServerConnections}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {availableDownlinkPorts} downlink ports × {breakoutFactor} connections per port
+                      </Typography>
+                    </Box>
+                  );
+                })()}
               </Box>
             </Grid>
           </Grid>

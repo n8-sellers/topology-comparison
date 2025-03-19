@@ -275,7 +275,8 @@ export const calculateOversubscription = (config: TopologyConfiguration): Oversu
   if (!config.leafConfig) {
     config.leafConfig = {
       portCount: 48,
-      downlinkSpeed: '100G'
+      downlinkSpeed: '100G',
+      breakoutMode: '1x100G' // Default to no breakout
     };
   }
   
@@ -340,8 +341,27 @@ export const calculateOversubscription = (config: TopologyConfiguration): Oversu
   const downlinkSpeedGbps = downlinkSpeed ? 
     parseInt((downlinkSpeed.match(/\d+/)?.[0]) || '100') : 100;
   
-  // Calculate total downlink capacity across all leaf switches
-  const totalDownlinkCapacity = numLeafs * downlinkPortsPerLeaf * downlinkSpeedGbps;
+  // Get the leaf breakout mode and factor to calculate total server ports
+  let leafBreakoutFactor = 1;
+  if (config.leafConfig.breakoutMode && config.breakoutOptions && 
+      typeof config.breakoutOptions === 'object' && !Array.isArray(config.breakoutOptions)) {
+    // It's the new BreakoutOptions type
+    const options = config.breakoutOptions as BreakoutOptions;
+    
+    if (options[downlinkSpeed]) {
+      const leafBreakoutOption = options[downlinkSpeed].find(
+        (option: BreakoutOption) => option.type === config.leafConfig.breakoutMode
+      );
+      
+      if (leafBreakoutOption) {
+        leafBreakoutFactor = leafBreakoutOption.factor;
+      }
+    }
+  }
+  
+  // Calculate total downlink capacity across all leaf switches, accounting for breakout
+  const totalServerPorts = numLeafs * downlinkPortsPerLeaf * leafBreakoutFactor;
+  const totalDownlinkCapacity = totalServerPorts * (downlinkSpeedGbps / leafBreakoutFactor);
   
   // Calculate oversubscription ratio, handling division by zero
   const oversubscriptionRatio = totalUplinkCapacity > 0 

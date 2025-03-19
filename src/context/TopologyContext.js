@@ -20,7 +20,7 @@ const defaultTopology = {
     // Basic configuration
     numSpines: 2,
     numLeafs: 4,
-    numTiers: 1,
+    numTiers: 2,  // Default to 2-tier design since most networks use spine-leaf architecture
     spineConfig: {
       portCount: 64,
       portSpeed: '800G',
@@ -28,7 +28,8 @@ const defaultTopology = {
     },
     leafConfig: {
       portCount: 64,
-      downlinkSpeed: '100G'
+      downlinkSpeed: '100G',
+      breakoutMode: '1x100G'  // Default to no breakout
     },
     // Device selection
     deviceSelection: {
@@ -55,6 +56,22 @@ const defaultTopology = {
         { type: '2x200G', factor: 2 },
         { type: '4x100G', factor: 4 },
         { type: '8x50G', factor: 8 }
+      ],
+      '100G': [
+        { type: '1x100G', factor: 1 },
+        { type: '2x50G', factor: 2 },
+        { type: '4x25G', factor: 4 },
+        { type: '10x10G', factor: 10 }
+      ],
+      '40G': [
+        { type: '1x40G', factor: 1 },
+        { type: '4x10G', factor: 4 }
+      ],
+      '25G': [
+        { type: '1x25G', factor: 1 }
+      ],
+      '10G': [
+        { type: '1x10G', factor: 1 }
       ]
     },
     disjointedSpines: false,
