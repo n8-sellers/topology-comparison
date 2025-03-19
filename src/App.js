@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Context Providers
@@ -15,6 +15,18 @@ import Visualization from './pages/Visualization';
 import Comparison from './pages/Comparison';
 
 function App() {
+  // Initialize the storage service when the app starts
+  useEffect(() => {
+    const initializeStorage = async () => {
+      const StorageService = await import('./services/StorageService');
+      StorageService.default.initializeStorage()
+        .then(result => console.log("Storage service initialized", result))
+        .catch(error => console.error("Error initializing storage service:", error));
+    };
+    
+    initializeStorage();
+  }, []);
+  
   return (
     <ThemeProvider>
       <TopologyProvider>

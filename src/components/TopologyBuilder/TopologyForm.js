@@ -17,12 +17,15 @@ import {
   Tabs,
   Tab,
   IconButton,
-  Tooltip
+  Tooltip,
+  Chip
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InfoIcon from '@mui/icons-material/Info';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
 // TabPanel component for the tabbed interface
 function TabPanel(props) {
@@ -62,8 +65,12 @@ const TopologyForm = () => {
     currentTopology, 
     createTopology, 
     updateTopology, 
+    updateTopologyWithAutoSave,
     deleteTopology,
-    duplicateTopology
+    duplicateTopology,
+    autoSave,
+    toggleAutoSave,
+    saveStatus
   } = useTopology();
   
   const [topology, setTopology] = useState(null);
@@ -92,10 +99,16 @@ const TopologyForm = () => {
   // Handle form field changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setTopology({
+    const updatedTopology = {
       ...topology,
       [name]: value
-    });
+    };
+    setTopology(updatedTopology);
+    
+    // Auto-save the topology
+    if (autoSave) {
+      updateTopologyWithAutoSave(updatedTopology);
+    }
   };
   
   // Ensure minimum tiers based on spine and leaf counts
@@ -130,6 +143,11 @@ const TopologyForm = () => {
     validateTopology(updatedTopology);
     
     setTopology(updatedTopology);
+    
+    // Auto-save the topology
+    if (autoSave) {
+      updateTopologyWithAutoSave(updatedTopology);
+    }
   };
   
   // Handle nested configuration field changes
@@ -149,6 +167,11 @@ const TopologyForm = () => {
     validateTopology(updatedTopology);
     
     setTopology(updatedTopology);
+    
+    // Auto-save the topology
+    if (autoSave) {
+      updateTopologyWithAutoSave(updatedTopology);
+    }
   };
   
   // Validate the topology configuration
@@ -221,6 +244,54 @@ const TopologyForm = () => {
     }
   };
   
+  // Get save status indicator
+  const getSaveStatusIndicator = () => {
+    switch (saveStatus) {
+      case 'saving':
+        return (
+          <Chip
+            icon={<AutorenewIcon className="rotating-icon" />}
+            label="Saving..."
+            size="small"
+            color="primary"
+            variant="outlined"
+            sx={{ marginRight: 2 }}
+          />
+        );
+      case 'error':
+        return (
+          <Chip
+            icon={<ErrorOutlineIcon />}
+            label="Save error"
+            size="small"
+            color="error"
+            variant="outlined"
+            sx={{ marginRight: 2 }}
+          />
+        );
+      case 'saved':
+      default:
+        return autoSave ? (
+          <Chip
+            icon={<SaveIcon />}
+            label="Auto-save on"
+            size="small"
+            color="success"
+            variant="outlined"
+            sx={{ marginRight: 2 }}
+          />
+        ) : (
+          <Chip
+            label="Auto-save off"
+            size="small"
+            color="default"
+            variant="outlined"
+            sx={{ marginRight: 2 }}
+          />
+        );
+    }
+  };
+  
   // Delete topology
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this topology?')) {
@@ -252,26 +323,39 @@ const TopologyForm = () => {
           />
         }
         action={
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Tooltip title="Save Topology">
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {getSaveStatusIndicator()}
+            
+            <Tooltip title={autoSave ? "Disable Auto-Save" : "Enable Auto-Save"}>
+              <IconButton 
+                onClick={toggleAutoSave} 
+                color={autoSave ? "success" : "default"}
+                sx={{ mr: 1 }}
+              >
+                <SaveIcon />
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Save Topology Now">
               <IconButton onClick={handleSave} color="primary">
                 <SaveIcon />
               </IconButton>
             </Tooltip>
+            
             <Tooltip title="Duplicate Topology">
               <IconButton onClick={handleDuplicate} color="primary">
                 <ContentCopyIcon />
               </IconButton>
             </Tooltip>
+            
             <Tooltip title="Export Topology">
               <IconButton onClick={() => exportTopology(topology)} color="primary">
-                <Tooltip title="Export Topology">
-                  <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24">
-                    <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
-                  </svg>
-                </Tooltip>
+                <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24">
+                  <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
+                </svg>
               </IconButton>
             </Tooltip>
+            
             <Tooltip title="Delete Topology">
               <IconButton onClick={handleDelete} color="error">
                 <DeleteIcon />

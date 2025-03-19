@@ -1,13 +1,26 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import localforage from 'localforage';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { templates, applyTemplate } from '../utils/templates';
 import { importTopology as importTopologyUtil } from '../utils/importExport';
+import StorageService from '../services/StorageService';
 
 // Initialize the context
 const TopologyContext = createContext();
 
 // Custom hook to use the topology context
 export const useTopology = () => useContext(TopologyContext);
+
+// Utility function to debounce function calls
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 // Default values for a new topology
 const defaultTopology = {
@@ -120,43 +133,60 @@ export const TopologyProvider = ({ children }) => {
   const [currentTopology, setCurrentTopology] = useState(null);
   const [comparisonTopologies, setComparisonTopologies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [autoSave, setAutoSave] = useState(true);
+  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
 
-  // Load topologies from local storage on component mount
+  // Initialize the storage service and load topologies
   useEffect(() => {
-    const loadTopologies = async () => {
+    const initialize = async () => {
       try {
-        const savedTopologies = await localforage.getItem('topologies');
-        if (savedTopologies) {
-          setTopologies(savedTopologies);
-          
-          // Set the most recently updated topology as the current one if available
-          if (savedTopologies.length > 0) {
-            const sortedTopologies = [...savedTopologies].sort(
-              (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
-            );
-            setCurrentTopology(sortedTopologies[0]);
-          }
+        // Initialize storage service (handles data migration)
+        await StorageService.initializeStorage();
+        
+        // Load all topologies
+        const savedTopologies = await StorageService.getAllTopologies();
+        setTopologies(savedTopologies);
+        
+        // Set the most recently updated topology as the current one if available
+        if (savedTopologies.length > 0) {
+          const sortedTopologies = [...savedTopologies].sort(
+            (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+          );
+          setCurrentTopology(sortedTopologies[0]);
         }
+        
         setLoading(false);
       } catch (error) {
-        console.error('Error loading topologies:', error);
+        console.error('Error initializing topology context:', error);
         setLoading(false);
       }
     };
 
-    loadTopologies();
+    initialize();
   }, []);
+  
+  // Create debounced save function
+  const debouncedSave = useCallback(
+    debounce(async (topology) => {
+      try {
+        setSaveStatus('saving');
+        await StorageService.saveTopology(topology);
+        setSaveStatus('saved');
+      } catch (error) {
+        console.error('Error auto-saving topology:', error);
+        setSaveStatus('error');
+      }
+    }, 1000),
+    []
+  );
 
-  // Save topologies to local storage whenever they change
-  useEffect(() => {
-    if (!loading && topologies.length > 0) {
-      localforage.setItem('topologies', topologies)
-        .catch(error => console.error('Error saving topologies:', error));
-    }
-  }, [topologies, loading]);
-
+  // Toggle auto-save feature
+  const toggleAutoSave = useCallback(() => {
+    setAutoSave(prev => !prev);
+  }, []);
+  
   // Create a new topology
-  const createTopology = () => {
+  const createTopology = useCallback(() => {
     const newTopology = {
       ...defaultTopology,
       id: Date.now().toString(),
@@ -167,10 +197,10 @@ export const TopologyProvider = ({ children }) => {
     setTopologies([...topologies, newTopology]);
     setCurrentTopology(newTopology);
     return newTopology;
-  };
+  }, [topologies]);
   
   // Create a new topology from a template
-  const createTopologyFromTemplate = (templateName) => {
+  const createTopologyFromTemplate = useCallback((templateName) => {
     const newTopology = {
       ...defaultTopology,
       id: Date.now().toString(),
@@ -183,10 +213,10 @@ export const TopologyProvider = ({ children }) => {
     setTopologies([...topologies, topologyWithTemplate]);
     setCurrentTopology(topologyWithTemplate);
     return topologyWithTemplate;
-  };
+  }, [topologies]);
 
   // Update an existing topology
-  const updateTopology = (updatedTopology) => {
+  const updateTopology = useCallback((updatedTopology) => {
     const updatedTopologies = topologies.map(topology => 
       topology.id === updatedTopology.id 
         ? { ...updatedTopology, updatedAt: new Date().toISOString() } 
@@ -196,14 +226,51 @@ export const TopologyProvider = ({ children }) => {
     setTopologies(updatedTopologies);
     
     if (currentTopology && currentTopology.id === updatedTopology.id) {
-      setCurrentTopology({ ...updatedTopology, updatedAt: new Date().toISOString() });
+      const topologyWithUpdatedTimestamp = { 
+        ...updatedTopology, 
+        updatedAt: new Date().toISOString() 
+      };
+      
+      setCurrentTopology(topologyWithUpdatedTimestamp);
+      
+      // Save the topology to storage service
+      StorageService.saveTopology(topologyWithUpdatedTimestamp)
+        .catch(error => console.error('Error saving topology:', error));
     }
     
     return updatedTopology;
-  };
+  }, [topologies, currentTopology]);
+  
+  // Update topology with auto-save if enabled
+  const updateTopologyWithAutoSave = useCallback((updatedTopology) => {
+    const topologyWithUpdatedTimestamp = { 
+      ...updatedTopology, 
+      updatedAt: new Date().toISOString() 
+    };
+    
+    const updatedTopologies = topologies.map(topology => 
+      topology.id === updatedTopology.id 
+        ? topologyWithUpdatedTimestamp
+        : topology
+    );
+    
+    setTopologies(updatedTopologies);
+    
+    if (currentTopology && currentTopology.id === updatedTopology.id) {
+      setCurrentTopology(topologyWithUpdatedTimestamp);
+      
+      // Only auto-save if the feature is enabled
+      if (autoSave) {
+        setSaveStatus('saving');
+        debouncedSave(topologyWithUpdatedTimestamp);
+      }
+    }
+    
+    return topologyWithUpdatedTimestamp;
+  }, [topologies, currentTopology, autoSave, debouncedSave]);
 
   // Delete a topology
-  const deleteTopology = (topologyId) => {
+  const deleteTopology = useCallback((topologyId) => {
     const updatedTopologies = topologies.filter(topology => topology.id !== topologyId);
     setTopologies(updatedTopologies);
     
@@ -214,19 +281,23 @@ export const TopologyProvider = ({ children }) => {
     
     // Remove from comparison if it was there
     setComparisonTopologies(comparisonTopologies.filter(id => id !== topologyId));
-  };
+    
+    // Delete from storage
+    StorageService.deleteTopology(topologyId)
+      .catch(error => console.error('Error deleting topology:', error));
+  }, [topologies, currentTopology, comparisonTopologies]);
 
   // Add or remove a topology from comparison
-  const toggleComparisonTopology = (topologyId) => {
+  const toggleComparisonTopology = useCallback((topologyId) => {
     if (comparisonTopologies.includes(topologyId)) {
       setComparisonTopologies(comparisonTopologies.filter(id => id !== topologyId));
     } else {
       setComparisonTopologies([...comparisonTopologies, topologyId]);
     }
-  };
+  }, [comparisonTopologies]);
 
   // Duplicate a topology
-  const duplicateTopology = (topologyId) => {
+  const duplicateTopology = useCallback((topologyId) => {
     const topologyToDuplicate = topologies.find(topology => topology.id === topologyId);
     
     if (!topologyToDuplicate) return null;
@@ -240,31 +311,40 @@ export const TopologyProvider = ({ children }) => {
     };
     
     setTopologies([...topologies, duplicatedTopology]);
+    
+    // Save the duplicated topology
+    StorageService.saveTopology(duplicatedTopology)
+      .catch(error => console.error('Error saving duplicated topology:', error));
+    
     return duplicatedTopology;
-  };
+  }, [topologies]);
 
   // Get a topology by ID
-  const getTopologyById = (topologyId) => {
+  const getTopologyById = useCallback((topologyId) => {
     return topologies.find(topology => topology.id === topologyId) || null;
-  };
+  }, [topologies]);
 
   // Get topologies for comparison
-  const getComparisonTopologies = () => {
+  const getComparisonTopologies = useCallback(() => {
     return topologies.filter(topology => comparisonTopologies.includes(topology.id));
-  };
+  }, [topologies, comparisonTopologies]);
 
   // Import a topology from a file
-  const importTopology = async (file) => {
+  const importTopology = useCallback(async (file) => {
     try {
       const importedTopology = await importTopologyUtil(file);
       setTopologies([...topologies, importedTopology]);
       setCurrentTopology(importedTopology);
+      
+      // Save the imported topology
+      await StorageService.saveTopology(importedTopology);
+      
       return importedTopology;
     } catch (error) {
       console.error('Error importing topology:', error);
       throw error;
     }
-  };
+  }, [topologies]);
 
   // Context value
   const value = {
@@ -273,9 +353,13 @@ export const TopologyProvider = ({ children }) => {
     setCurrentTopology,
     comparisonTopologies,
     loading,
+    autoSave,
+    saveStatus,
+    toggleAutoSave,
     createTopology,
     createTopologyFromTemplate,
     updateTopology,
+    updateTopologyWithAutoSave,
     deleteTopology,
     toggleComparisonTopology,
     duplicateTopology,

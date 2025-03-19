@@ -2,15 +2,109 @@
  * StorageService.js
  * 
  * This service provides functions to save and load topologies from local storage.
+ * Optimized for performance with individual topology storage and topology index.
  */
 
 import localforage from 'localforage';
 
-// Configure localforage
-localforage.config({
+// Configure localforage instances
+const topologyStore = localforage.createInstance({
+  name: 'dc-network-topology-analyzer',
+  storeName: 'topology-data'
+});
+
+const topologyIndexStore = localforage.createInstance({
+  name: 'dc-network-topology-analyzer',
+  storeName: 'topology-index'
+});
+
+// Legacy store for backward compatibility
+const legacyStore = localforage.createInstance({
   name: 'dc-network-topology-analyzer',
   storeName: 'topologies'
 });
+
+/**
+ * Get or create the topology index (internal function)
+ * @returns {Promise<Array>} - Promise that resolves with the topology index
+ */
+const getTopologyIndexInternal = async () => {
+  try {
+    const index = await topologyIndexStore.getItem('index');
+    return index || [];
+  } catch (error) {
+    console.error('Error getting topology index:', error);
+    return [];
+  }
+};
+
+/**
+ * Save the topology index
+ * @param {Array} index - The topology index to save
+ * @returns {Promise} - Promise that resolves when the index is saved
+ */
+const saveTopologyIndex = async (index) => {
+  try {
+    await topologyIndexStore.setItem('index', index);
+    return true;
+  } catch (error) {
+    console.error('Error saving topology index:', error);
+    throw error;
+  }
+};
+
+/**
+ * Migrate data from legacy storage to new storage format
+ * @returns {Promise} - Promise that resolves when migration is complete
+ */
+const migrateFromLegacyStorage = async () => {
+  try {
+    // Check if migration is needed
+    const migrationCompleted = await topologyIndexStore.getItem('migration-completed');
+    if (migrationCompleted) return true;
+    
+    // Get topologies from legacy storage
+    const legacyTopologies = await legacyStore.getItem('topologies');
+    if (!legacyTopologies || !Array.isArray(legacyTopologies) || legacyTopologies.length === 0) {
+      await topologyIndexStore.setItem('migration-completed', true);
+      return true;
+    }
+    
+    // Create index entries
+    const index = legacyTopologies.map(topology => ({
+      id: topology.id,
+      name: topology.name,
+      description: topology.description || '',
+      createdAt: topology.createdAt,
+      updatedAt: topology.updatedAt
+    }));
+    
+    // Save index
+    await topologyIndexStore.setItem('index', index);
+    
+    // Save individual topologies
+    for (const topology of legacyTopologies) {
+      await topologyStore.setItem(`topology-${topology.id}`, topology);
+    }
+    
+    // Mark migration as completed
+    await topologyIndexStore.setItem('migration-completed', true);
+    
+    console.log(`Migrated ${legacyTopologies.length} topologies from legacy storage`);
+    return true;
+  } catch (error) {
+    console.error('Error migrating from legacy storage:', error);
+    return false;
+  }
+};
+
+/**
+ * Initialize the storage service
+ * @returns {Promise} - Promise that resolves when initialization is complete
+ */
+export const initializeStorage = async () => {
+  return migrateFromLegacyStorage();
+};
 
 /**
  * Save a topology to local storage
@@ -23,31 +117,43 @@ export const saveTopology = async (topology) => {
   }
   
   try {
-    // Get all topologies
-    const topologies = await getAllTopologies();
+    // Ensure migration is complete
+    await migrateFromLegacyStorage();
     
-    // Find the index of the topology to update
-    const index = topologies.findIndex(t => t.id === topology.id);
+    // Prepare topology with updated timestamp
+    const updatedTopology = {
+      ...topology,
+      updatedAt: new Date().toISOString()
+    };
     
-    if (index >= 0) {
-      // Update existing topology
-      topologies[index] = {
-        ...topology,
-        updatedAt: new Date().toISOString()
-      };
-    } else {
-      // Add new topology
-      topologies.push({
-        ...topology,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
+    // If it's a new topology, add creation timestamp
+    if (!topology.createdAt) {
+      updatedTopology.createdAt = updatedTopology.updatedAt;
     }
     
-    // Save all topologies
-    await localforage.setItem('topologies', topologies);
+    // Save the topology individually
+    await topologyStore.setItem(`topology-${topology.id}`, updatedTopology);
     
-    return topology;
+    // Update the index
+    const index = await getTopologyIndexInternal();
+    const indexEntry = {
+      id: updatedTopology.id,
+      name: updatedTopology.name,
+      description: updatedTopology.description || '',
+      createdAt: updatedTopology.createdAt,
+      updatedAt: updatedTopology.updatedAt
+    };
+    
+    const existingIndex = index.findIndex(entry => entry.id === topology.id);
+    if (existingIndex >= 0) {
+      index[existingIndex] = indexEntry;
+    } else {
+      index.push(indexEntry);
+    }
+    
+    await saveTopologyIndex(index);
+    
+    return updatedTopology;
   } catch (error) {
     console.error('Error saving topology:', error);
     throw error;
@@ -61,8 +167,12 @@ export const saveTopology = async (topology) => {
  */
 export const getTopologyById = async (id) => {
   try {
-    const topologies = await getAllTopologies();
-    return topologies.find(topology => topology.id === id) || null;
+    // Ensure migration is complete
+    await migrateFromLegacyStorage();
+    
+    // Get the topology directly
+    const topology = await topologyStore.getItem(`topology-${id}`);
+    return topology || null;
   } catch (error) {
     console.error('Error getting topology:', error);
     throw error;
@@ -75,10 +185,41 @@ export const getTopologyById = async (id) => {
  */
 export const getAllTopologies = async () => {
   try {
-    const topologies = await localforage.getItem('topologies');
-    return topologies || [];
+    // Ensure migration is complete
+    await migrateFromLegacyStorage();
+    
+    // Get the index
+    const index = await getTopologyIndexInternal();
+    
+    if (index.length === 0) return [];
+    
+    // Get all topologies based on the index
+    const topologies = await Promise.all(
+      index.map(entry => topologyStore.getItem(`topology-${entry.id}`))
+    );
+    
+    // Filter out any null values (in case a topology was deleted but the index wasn't updated)
+    return topologies.filter(Boolean);
   } catch (error) {
     console.error('Error getting topologies:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get topology index with metadata only (for faster listing)
+ * @returns {Promise} - Promise that resolves with an array of topology metadata
+ */
+export const getTopologyIndex = async () => {
+  try {
+    // Ensure migration is complete
+    await migrateFromLegacyStorage();
+    
+    // Get the index
+    const index = await topologyIndexStore.getItem('index');
+    return index || [];
+  } catch (error) {
+    console.error('Error getting topology index:', error);
     throw error;
   }
 };
@@ -90,9 +231,17 @@ export const getAllTopologies = async () => {
  */
 export const deleteTopology = async (id) => {
   try {
-    const topologies = await getAllTopologies();
-    const updatedTopologies = topologies.filter(topology => topology.id !== id);
-    await localforage.setItem('topologies', updatedTopologies);
+    // Ensure migration is complete
+    await migrateFromLegacyStorage();
+    
+    // Remove the topology
+    await topologyStore.removeItem(`topology-${id}`);
+    
+    // Update the index
+    const index = await getTopologyIndexInternal();
+    const updatedIndex = index.filter(entry => entry.id !== id);
+    await saveTopologyIndex(updatedIndex);
+    
     return true;
   } catch (error) {
     console.error('Error deleting topology:', error);
@@ -150,53 +299,61 @@ export const importTopologies = (json) => {
  */
 export const saveImportedTopologies = async (importedTopologies, overwrite = false) => {
   try {
-    const existingTopologies = await getAllTopologies();
+    // Ensure migration is complete
+    await migrateFromLegacyStorage();
     
-    let updatedTopologies;
+    const index = await getTopologyIndexInternal();
+    const existingIds = new Set(index.map(entry => entry.id));
     
-    if (overwrite) {
-      // Create a map of existing topologies by ID for quick lookup
-      const existingTopologiesMap = existingTopologies.reduce((map, topology) => {
-        map[topology.id] = topology;
-        return map;
-      }, {});
+    // Process each imported topology
+    for (const topology of importedTopologies) {
+      let topologyToSave;
       
-      // Merge imported topologies with existing ones, overwriting duplicates
-      updatedTopologies = [
-        ...existingTopologies.filter(topology => !importedTopologies.some(t => t.id === topology.id)),
-        ...importedTopologies.map(topology => ({
+      if (overwrite || !existingIds.has(topology.id)) {
+        // Save with original ID if overwriting or ID doesn't exist
+        topologyToSave = {
           ...topology,
           updatedAt: new Date().toISOString()
-        }))
-      ];
-    } else {
-      // Generate new IDs for imported topologies to avoid conflicts
-      updatedTopologies = [
-        ...existingTopologies,
-        ...importedTopologies.map(topology => ({
+        };
+        
+        // Add createdAt if it doesn't exist
+        if (!topologyToSave.createdAt) {
+          topologyToSave.createdAt = topologyToSave.updatedAt;
+        }
+      } else {
+        // Generate new ID to avoid conflicts
+        const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        topologyToSave = {
           ...topology,
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: newId,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
-        }))
-      ];
+        };
+      }
+      
+      // Save the topology
+      await saveTopology(topologyToSave);
     }
     
-    await localforage.setItem('topologies', updatedTopologies);
-    
-    return updatedTopologies;
+    // Return all topologies
+    return getAllTopologies();
   } catch (error) {
     console.error('Error saving imported topologies:', error);
     throw error;
   }
 };
 
-export default {
+// Create a named object for export
+const StorageService = {
+  initializeStorage,
   saveTopology,
   getTopologyById,
   getAllTopologies,
+  getTopologyIndex,
   deleteTopology,
   exportTopologies,
   importTopologies,
   saveImportedTopologies
 };
+
+export default StorageService;
