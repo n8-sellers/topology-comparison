@@ -4,9 +4,14 @@ A powerful web application for designing, analyzing, and comparing different dat
 
 ## Features
 
-- **Design Clos Network Topologies**: Create and customize data center network topologies with various parameters
+- **Design Network Topologies**: Create and customize data center network topologies with various parameters:
+  - **Multi-tier Clos Networks**: Build traditional leaf-spine and 3-tier Clos topologies
+  - **Single-tier Designs**: Support for leaf-only designs with no spine switches
 - **Pre-configured Templates**: Start with common topology templates like leaf-spine, 3-tier Clos, and more
-- **Advanced Configuration Options**: Configure spine and leaf switches, port counts, link speeds, and breakout modes
+- **Advanced Configuration Options**: 
+  - Configure spine and leaf switches, port counts, and link speeds
+  - Breakout mode support for both spine uplinks and leaf downlinks
+  - Real-time calculation of maximum server connections based on port configuration
 - **Comprehensive Analysis**: Calculate and visualize key metrics including:
   - Cost breakdown
   - Power usage

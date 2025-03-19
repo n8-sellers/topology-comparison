@@ -552,19 +552,7 @@ const TopologyForm = () => {
                     select
                     label="Port Count"
                     value={topology.configuration.leafConfig?.portCount || 64}
-                    onChange={(e) => {
-                      const updatedConfig = { 
-                        ...topology.configuration,
-                        leafConfig: {
-                          ...topology.configuration.leafConfig,
-                          portCount: parseInt(e.target.value)
-                        }
-                      };
-                      setTopology({
-                        ...topology,
-                        configuration: updatedConfig
-                      });
-                    }}
+                    onChange={(e) => handleNestedConfigChange('leafConfig', 'portCount', parseInt(e.target.value))}
                     SelectProps={{ native: true }}
                     sx={{ mr: 2, width: 120 }}
                   >
@@ -581,21 +569,31 @@ const TopologyForm = () => {
                     value={topology.configuration.leafConfig?.downlinkSpeed || '100G'}
                     onChange={(e) => {
                       const newSpeed = e.target.value;
-                      // Get the first available breakout mode for this speed
+                      // Get the first available breakout mode for this speed or create a default one
                       const firstBreakoutMode = topology.configuration.breakoutOptions[newSpeed]?.[0]?.type || `1x${newSpeed}`;
                       
-                      const updatedConfig = { 
-                        ...topology.configuration,
-                        leafConfig: {
-                          ...topology.configuration.leafConfig,
-                          downlinkSpeed: newSpeed,
-                          breakoutMode: firstBreakoutMode
+                      // Update both properties at once to ensure consistency
+                      const updatedLeafConfig = {
+                        ...topology.configuration.leafConfig,
+                        downlinkSpeed: newSpeed,
+                        breakoutMode: firstBreakoutMode
+                      };
+                      
+                      // Update the entire leafConfig object
+                      const updatedTopology = {
+                        ...topology,
+                        configuration: {
+                          ...topology.configuration,
+                          leafConfig: updatedLeafConfig
                         }
                       };
-                      setTopology({
-                        ...topology,
-                        configuration: updatedConfig
-                      });
+                      
+                      // Validate and set the updated topology
+                      validateTopology(updatedTopology);
+                      setTopology(updatedTopology);
+                      
+                      console.log("Updated downlink speed to:", newSpeed);
+                      console.log("Updated breakout mode to:", firstBreakoutMode);
                     }}
                     SelectProps={{ native: true }}
                     sx={{ mr: 2, width: 120 }}
@@ -620,26 +618,37 @@ const TopologyForm = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   {topology.configuration.breakoutOptions && 
                    topology.configuration.breakoutOptions[topology.configuration.leafConfig.downlinkSpeed] ? (
-                    <TextField
-                      select
-                      label="Breakout Mode"
-                      value={topology.configuration.leafConfig.breakoutMode || `1x${topology.configuration.leafConfig.downlinkSpeed}`}
-                      onChange={(e) => {
-                        const updatedConfig = { 
-                          ...topology.configuration,
-                          leafConfig: {
+                      <TextField
+                        select
+                        label="Breakout Mode"
+                        value={topology.configuration.leafConfig.breakoutMode || `1x${topology.configuration.leafConfig.downlinkSpeed}`}
+                        onChange={(e) => {
+                          const newBreakoutMode = e.target.value;
+                          
+                          // Update the breakout mode directly
+                          const updatedLeafConfig = {
                             ...topology.configuration.leafConfig,
-                            breakoutMode: e.target.value
-                          }
-                        };
-                        setTopology({
-                          ...topology,
-                          configuration: updatedConfig
-                        });
-                      }}
-                      SelectProps={{ native: true }}
-                      sx={{ mr: 2, width: 120 }}
-                    >
+                            breakoutMode: newBreakoutMode
+                          };
+                          
+                          // Update the entire leafConfig object
+                          const updatedTopology = {
+                            ...topology,
+                            configuration: {
+                              ...topology.configuration,
+                              leafConfig: updatedLeafConfig
+                            }
+                          };
+                          
+                          // Validate and set the updated topology
+                          validateTopology(updatedTopology);
+                          setTopology(updatedTopology);
+                          
+                          console.log("Updated breakout mode to:", newBreakoutMode);
+                        }}
+                        SelectProps={{ native: true }}
+                        sx={{ mr: 2, width: 120 }}
+                      >
                       {topology.configuration.breakoutOptions[topology.configuration.leafConfig.downlinkSpeed].map((option) => (
                         <option key={option.type} value={option.type}>
                           {option.type}
@@ -676,19 +685,78 @@ const TopologyForm = () => {
                   const breakoutFactor = breakoutOption ? breakoutOption.factor : 1;
                   
                   // Calculate total server-facing ports
-                  // For leaf switches, we need to subtract the ports used for uplinks
-                  const uplinkPorts = topology.configuration.numTiers > 1 ? topology.configuration.numSpines : 0;
-                  const availableDownlinkPorts = Math.max(0, portCount - uplinkPorts);
-                  const maxServerConnections = availableDownlinkPorts * breakoutFactor;
+                  let uplinkPortsRequired = 0;
+                  
+                  // Only calculate uplink ports if we have a multi-tier design
+                  if (topology.configuration.numTiers > 1) {
+                    // In a Clos network, each leaf switch needs to connect to each spine switch
+                    // When spine switches use port breakout, multiple leaf switches can connect to a single spine port
+                    
+                    // Get the spine breakout factor
+                    const { portSpeed: spinePortSpeed, breakoutMode: spineBreakoutMode } = topology.configuration.spineConfig;
+                    let spineBreakoutFactor = 1;
+                    
+                    if (topology.configuration.breakoutOptions && 
+                        topology.configuration.breakoutOptions[spinePortSpeed]) {
+                      const spineBreakoutOption = topology.configuration.breakoutOptions[spinePortSpeed].find(
+                        option => option.type === spineBreakoutMode
+                      );
+                      spineBreakoutFactor = spineBreakoutOption ? spineBreakoutOption.factor : 1;
+                    }
+                    
+                    // In a Clos fabric, uplink requirements depend on the number of spine switches
+                    // Each leaf needs exactly one connection to each spine (1:1 relationship)
+                    // However, each spine port with breakout can connect to multiple leaf switches
+                    
+                    // Calculate how many spine switches one leaf port can connect to (with breakout)
+                    const spinesPerLeafPort = spineBreakoutFactor; 
+                    
+                    // Calculate how many leaf ports are needed to connect to all spine switches
+                    uplinkPortsRequired = Math.ceil(topology.configuration.numSpines / spinesPerLeafPort);
+                    
+                    // Uplink ports cannot exceed the total port count
+                    uplinkPortsRequired = Math.min(uplinkPortsRequired, portCount);
+                    
+                    console.log("Spine count:", topology.configuration.numSpines);
+                    console.log("Spine breakout factor:", spineBreakoutFactor);
+                    console.log("Spines per leaf port:", spinesPerLeafPort);
+                  }
+                  
+                  console.log("Uplink ports required:", uplinkPortsRequired);
+                  console.log("Leaf port count:", portCount);
+                  
+                  // Calculate available ports for server connections
+                  const availableDownlinkPorts = Math.max(0, portCount - uplinkPortsRequired);
+                  const maxServerConnectionsPerLeaf = availableDownlinkPorts * breakoutFactor;
+                  const totalLeafSwitches = topology.configuration.numLeafs;
+                  const totalFabricCapacity = maxServerConnectionsPerLeaf * totalLeafSwitches;
                   
                   return (
                     <Box sx={{ mt: 2, p: 1, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                      <Typography variant="subtitle2">
-                        Maximum Server Connections: {maxServerConnections}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {availableDownlinkPorts} downlink ports × {breakoutFactor} connections per port
-                      </Typography>
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="subtitle2">
+                          Per-Leaf Server Connections: {maxServerConnectionsPerLeaf}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {availableDownlinkPorts} downlink ports × {breakoutFactor} connections per port
+                        </Typography>
+                        {uplinkPortsRequired > 0 && (
+                          <Typography variant="body2" color="text.secondary">
+                            ({uplinkPortsRequired} ports reserved for spine uplinks)
+                          </Typography>
+                        )}
+                      </Box>
+                      
+                      <Divider sx={{ my: 1 }} />
+                      
+                      <Box>
+                        <Typography variant="subtitle2" color="primary.main" sx={{ fontWeight: 'bold' }}>
+                          Total Fabric Capacity: {totalFabricCapacity.toLocaleString()} server connections
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {maxServerConnectionsPerLeaf} connections per leaf × {totalLeafSwitches} leaf switches
+                        </Typography>
+                      </Box>
                     </Box>
                   );
                 })()}

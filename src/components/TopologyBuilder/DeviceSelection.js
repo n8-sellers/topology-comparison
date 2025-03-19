@@ -135,6 +135,93 @@ const DeviceSelection = ({ topology, setTopology }) => {
     }
   };
 
+  // Check if a device is compatible with the current configuration
+  const checkDeviceCompatibility = (device, deviceType) => {
+    if (!device) return { compatible: false, issues: ['No device selected'] };
+    
+    const issues = [];
+    let compatible = true;
+    
+    if (deviceType === 'spine') {
+      const { portCount, portSpeed } = topology.configuration.spineConfig;
+      
+      // Check if the device supports the configured port count
+      const supportedPortCounts = device.portConfigurations.map(config => config.count);
+      if (!supportedPortCounts.includes(portCount)) {
+        issues.push(`Device does not support ${portCount} ports`);
+        compatible = false;
+      }
+      
+      // Check if the device supports the configured port speed
+      const supportedSpeeds = device.portConfigurations.flatMap(config => [config.speed]);
+      if (!supportedSpeeds.includes(portSpeed)) {
+        issues.push(`Device does not support ${portSpeed} speed`);
+        compatible = false;
+      }
+    } else if (deviceType === 'leaf') {
+      const { portCount, downlinkSpeed } = topology.configuration.leafConfig;
+      
+      // Check if the device supports the configured port count
+      const supportedPortCounts = device.portConfigurations.map(config => config.count);
+      if (!supportedPortCounts.includes(portCount)) {
+        issues.push(`Device does not support ${portCount} ports`);
+        compatible = false;
+      }
+      
+      // Check if the device supports the configured downlink speed
+      if (!device.downlinkOptions.includes(downlinkSpeed)) {
+        issues.push(`Device does not support ${downlinkSpeed} downlink speed`);
+        compatible = false;
+      }
+    }
+    
+    return { compatible, issues };
+  };
+
+  // Apply device defaults to configuration
+  const applyDeviceDefaults = (deviceType, device) => {
+    if (!device) return;
+    
+    const updatedTopology = { ...topology };
+    
+    if (deviceType === 'spine') {
+      // Find the port configuration with the highest port count
+      const portConfig = device.portConfigurations.reduce(
+        (prev, current) => (current.count > prev.count ? current : prev),
+        device.portConfigurations[0]
+      );
+      
+      updatedTopology.configuration.spineConfig = {
+        portCount: portConfig.count,
+        portSpeed: portConfig.speed,
+        breakoutMode: portConfig.breakoutOptions[0]
+      };
+      
+      updatedTopology.configuration.switchCost.spine = device.cost;
+      updatedTopology.configuration.powerUsage.spine = device.powerConsumption.typical;
+      updatedTopology.configuration.rackSpaceParameters.spineRackUnits = device.rackUnits;
+    } else if (deviceType === 'leaf') {
+      // Find the port configuration with the highest port count
+      const portConfig = device.portConfigurations.reduce(
+        (prev, current) => (current.count > prev.count ? current : prev),
+        device.portConfigurations[0]
+      );
+      
+      updatedTopology.configuration.leafConfig = {
+        ...updatedTopology.configuration.leafConfig,
+        portCount: portConfig.count,
+        downlinkSpeed: device.downlinkOptions[device.downlinkOptions.length - 1], // Use the highest speed
+        breakoutMode: `1x${device.downlinkOptions[device.downlinkOptions.length - 1]}`
+      };
+      
+      updatedTopology.configuration.switchCost.leaf = device.cost;
+      updatedTopology.configuration.powerUsage.leaf = device.powerConsumption.typical;
+      updatedTopology.configuration.rackSpaceParameters.leafRackUnits = device.rackUnits;
+    }
+    
+    setTopology(updatedTopology);
+  };
+
   // Handle spine device change
   const handleSpineDeviceChange = async (event) => {
     const deviceId = event.target.value;
@@ -143,7 +230,7 @@ const DeviceSelection = ({ topology, setTopology }) => {
       const device = await DeviceManagementService.getDeviceById('spine', deviceId);
       setSelectedSpineDevice(device);
     
-      // Update topology with selected device
+      // Update topology with selected device but don't change configuration
       const updatedTopology = {
         ...topology,
         configuration: {
@@ -152,30 +239,11 @@ const DeviceSelection = ({ topology, setTopology }) => {
             ...topology.configuration.deviceSelection,
             spine: {
               deviceId: deviceId,
-              useDefaultConfig: topology.configuration.deviceSelection?.spine?.useDefaultConfig || true
+              useDefaultConfig: false // Default to false - don't automatically apply device defaults
             }
           }
         }
       };
-      
-      // If useDefaultConfig is true, update the spine configuration
-      if (updatedTopology.configuration.deviceSelection.spine.useDefaultConfig && device) {
-        // Find the port configuration with the highest port count
-        const portConfig = device.portConfigurations.reduce(
-          (prev, current) => (current.count > prev.count ? current : prev),
-          device.portConfigurations[0]
-        );
-        
-        updatedTopology.configuration.spineConfig = {
-          portCount: portConfig.count,
-          portSpeed: portConfig.speed,
-          breakoutMode: portConfig.breakoutOptions[0]
-        };
-        
-        updatedTopology.configuration.switchCost.spine = device.cost;
-        updatedTopology.configuration.powerUsage.spine = device.powerConsumption.typical;
-        updatedTopology.configuration.rackSpaceParameters.spineRackUnits = device.rackUnits;
-      }
       
       setTopology(updatedTopology);
     } catch (error) {
@@ -191,7 +259,7 @@ const DeviceSelection = ({ topology, setTopology }) => {
       const device = await DeviceManagementService.getDeviceById('leaf', deviceId);
       setSelectedLeafDevice(device);
     
-      // Update topology with selected device
+      // Update topology with selected device but don't change configuration
       const updatedTopology = {
         ...topology,
         configuration: {
@@ -200,29 +268,11 @@ const DeviceSelection = ({ topology, setTopology }) => {
             ...topology.configuration.deviceSelection,
             leaf: {
               deviceId: deviceId,
-              useDefaultConfig: topology.configuration.deviceSelection?.leaf?.useDefaultConfig || true
+              useDefaultConfig: false // Default to false - don't automatically apply device defaults
             }
           }
         }
       };
-      
-      // If useDefaultConfig is true, update the leaf configuration
-      if (updatedTopology.configuration.deviceSelection.leaf.useDefaultConfig && device) {
-        // Find the port configuration with the highest port count
-        const portConfig = device.portConfigurations.reduce(
-          (prev, current) => (current.count > prev.count ? current : prev),
-          device.portConfigurations[0]
-        );
-        
-        updatedTopology.configuration.leafConfig = {
-          portCount: portConfig.count,
-          downlinkSpeed: device.downlinkOptions[device.downlinkOptions.length - 1] // Use the highest speed
-        };
-        
-        updatedTopology.configuration.switchCost.leaf = device.cost;
-        updatedTopology.configuration.powerUsage.leaf = device.powerConsumption.typical;
-        updatedTopology.configuration.rackSpaceParameters.leafRackUnits = device.rackUnits;
-      }
       
       setTopology(updatedTopology);
     } catch (error) {
@@ -667,19 +717,70 @@ const DeviceSelection = ({ topology, setTopology }) => {
                   
                   {renderSpecificationsTable(selectedSpineDevice)}
                   
+                  {/* Device Compatibility Indicator */}
+                  {selectedSpineDevice && (
+                    <Box sx={{ mt: 2, mb: 2 }}>
+                      {(() => {
+                        const { compatible, issues } = checkDeviceCompatibility(selectedSpineDevice, 'spine');
+                        return (
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            p: 1, 
+                            borderRadius: 1,
+                            bgcolor: compatible ? 'success.main' : 'warning.main',
+                            color: 'white'
+                          }}>
+                            {compatible ? (
+                              <>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold', mr: 1 }}>
+                                  ✓ Compatible with current configuration
+                                </Typography>
+                              </>
+                            ) : (
+                              <>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold', mr: 1 }}>
+                                  ⚠ Configuration compatibility issues:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {issues.join(', ')}
+                                </Typography>
+                              </>
+                            )}
+                          </Box>
+                        );
+                      })()}
+                    </Box>
+                  )}
+                  
+                  {/* Apply Device Defaults Section */}
                   <Box sx={{ mt: 2 }}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={topology.configuration.deviceSelection?.spine?.useDefaultConfig || false}
-                          onChange={handleSpineUseDefaultConfigChange}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={topology.configuration.deviceSelection?.spine?.useDefaultConfig || false}
+                              onChange={handleSpineUseDefaultConfigChange}
+                            />
+                          }
+                          label="Use device default configuration"
                         />
-                      }
-                      label="Use device default configuration"
-                    />
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      When enabled, the device specifications will automatically populate the spine configuration.
-                    </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          When enabled, the device specifications will automatically populate the spine configuration.
+                        </Typography>
+                      </Box>
+                      
+                      <Button 
+                        variant="contained" 
+                        color="primary" 
+                        size="small"
+                        onClick={() => applyDeviceDefaults('spine', selectedSpineDevice)}
+                        disabled={!selectedSpineDevice}
+                      >
+                        Apply Device Defaults
+                      </Button>
+                    </Box>
                   </Box>
                 </>
               )}
@@ -813,19 +914,70 @@ const DeviceSelection = ({ topology, setTopology }) => {
                   
                   {renderSpecificationsTable(selectedLeafDevice)}
                   
+                  {/* Device Compatibility Indicator */}
+                  {selectedLeafDevice && (
+                    <Box sx={{ mt: 2, mb: 2 }}>
+                      {(() => {
+                        const { compatible, issues } = checkDeviceCompatibility(selectedLeafDevice, 'leaf');
+                        return (
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            p: 1, 
+                            borderRadius: 1,
+                            bgcolor: compatible ? 'success.main' : 'warning.main',
+                            color: 'white'
+                          }}>
+                            {compatible ? (
+                              <>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold', mr: 1 }}>
+                                  ✓ Compatible with current configuration
+                                </Typography>
+                              </>
+                            ) : (
+                              <>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold', mr: 1 }}>
+                                  ⚠ Configuration compatibility issues:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {issues.join(', ')}
+                                </Typography>
+                              </>
+                            )}
+                          </Box>
+                        );
+                      })()}
+                    </Box>
+                  )}
+                  
+                  {/* Apply Device Defaults Section */}
                   <Box sx={{ mt: 2 }}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={topology.configuration.deviceSelection?.leaf?.useDefaultConfig || false}
-                          onChange={handleLeafUseDefaultConfigChange}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={topology.configuration.deviceSelection?.leaf?.useDefaultConfig || false}
+                              onChange={handleLeafUseDefaultConfigChange}
+                            />
+                          }
+                          label="Use device default configuration"
                         />
-                      }
-                      label="Use device default configuration"
-                    />
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      When enabled, the device specifications will automatically populate the leaf configuration.
-                    </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          When enabled, the device specifications will automatically populate the leaf configuration.
+                        </Typography>
+                      </Box>
+                      
+                      <Button 
+                        variant="contained" 
+                        color="primary" 
+                        size="small"
+                        onClick={() => applyDeviceDefaults('leaf', selectedLeafDevice)}
+                        disabled={!selectedLeafDevice}
+                      >
+                        Apply Device Defaults
+                      </Button>
+                    </Box>
                   </Box>
                 </>
               )}
