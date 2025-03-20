@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTopology } from '../../context/TopologyContext';
 import { exportTopology } from '../../utils/importExport';
-import DeviceSelection from './DeviceSelection';
+import DeviceSelection from './DeviceSelection.tsx';
 import { 
   Box, 
   Card, 

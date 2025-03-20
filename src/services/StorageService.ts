@@ -2,16 +2,110 @@
  * StorageService.ts
  * 
  * This service provides functions to save and load topologies from local storage.
+ * Optimized for performance with individual topology storage and topology index.
  */
 
 import localforage from 'localforage';
 import { Topology } from '../types/topology';
 
-// Configure localforage
-localforage.config({
+// Configure localforage instances
+const topologyStore = localforage.createInstance({
+  name: 'dc-network-topology-analyzer',
+  storeName: 'topology-data'
+});
+
+const topologyIndexStore = localforage.createInstance({
+  name: 'dc-network-topology-analyzer',
+  storeName: 'topology-index'
+});
+
+// Legacy store for backward compatibility
+const legacyStore = localforage.createInstance({
   name: 'dc-network-topology-analyzer',
   storeName: 'topologies'
 });
+
+/**
+ * Get or create the topology index (internal function)
+ * @returns Promise that resolves with the topology index
+ */
+const getTopologyIndexInternal = async (): Promise<any[]> => {
+  try {
+    const index = await topologyIndexStore.getItem<any[]>('index');
+    return index || [];
+  } catch (error) {
+    console.error('Error getting topology index:', error);
+    return [];
+  }
+};
+
+/**
+ * Save the topology index
+ * @param index - The topology index to save
+ * @returns Promise that resolves when the index is saved
+ */
+const saveTopologyIndex = async (index: any[]): Promise<boolean> => {
+  try {
+    await topologyIndexStore.setItem('index', index);
+    return true;
+  } catch (error) {
+    console.error('Error saving topology index:', error);
+    throw error;
+  }
+};
+
+/**
+ * Migrate data from legacy storage to new storage format
+ * @returns Promise that resolves when migration is complete
+ */
+const migrateFromLegacyStorage = async (): Promise<boolean> => {
+  try {
+    // Check if migration is needed
+    const migrationCompleted = await topologyIndexStore.getItem<boolean>('migration-completed');
+    if (migrationCompleted) return true;
+    
+    // Get topologies from legacy storage
+    const legacyTopologies = await legacyStore.getItem<Topology[]>('topologies');
+    if (!legacyTopologies || !Array.isArray(legacyTopologies) || legacyTopologies.length === 0) {
+      await topologyIndexStore.setItem('migration-completed', true);
+      return true;
+    }
+    
+    // Create index entries
+    const index = legacyTopologies.map(topology => ({
+      id: topology.id,
+      name: topology.name,
+      description: topology.description || '',
+      createdAt: topology.createdAt,
+      updatedAt: topology.updatedAt
+    }));
+    
+    // Save index
+    await topologyIndexStore.setItem('index', index);
+    
+    // Save individual topologies
+    for (const topology of legacyTopologies) {
+      await topologyStore.setItem(`topology-${topology.id}`, topology);
+    }
+    
+    // Mark migration as completed
+    await topologyIndexStore.setItem('migration-completed', true);
+    
+    console.log(`Migrated ${legacyTopologies.length} topologies from legacy storage`);
+    return true;
+  } catch (error) {
+    console.error('Error migrating from legacy storage:', error);
+    return false;
+  }
+};
+
+/**
+ * Initialize the storage service
+ * @returns Promise that resolves when initialization is complete
+ */
+export const initializeStorage = async (): Promise<boolean> => {
+  return migrateFromLegacyStorage();
+};
 
 /**
  * Save a topology to local storage
@@ -196,6 +290,7 @@ export const saveImportedTopologies = async (
 };
 
 const storageService = {
+  initializeStorage,
   saveTopology,
   getTopologyById,
   getAllTopologies,

@@ -5,14 +5,20 @@
 import { ReactNode } from 'react';
 import { Topology } from './topology';
 
+export type SaveStatus = 'saved' | 'saving' | 'error';
+
 export interface TopologyContextType {
   topologies: Topology[];
   currentTopology: Topology | null;
   comparisonTopologies: string[];
   loading: boolean;
+  autoSave: boolean;
+  saveStatus: SaveStatus;
+  toggleAutoSave: () => void;
   createTopology: () => Topology;
   createTopologyFromTemplate: (templateName: string) => Topology;
   updateTopology: (updatedTopology: Topology) => Topology;
+  updateTopologyWithAutoSave: (updatedTopology: Topology) => Topology;
   deleteTopology: (topologyId: string) => void;
   toggleComparisonTopology: (topologyId: string) => void;
   duplicateTopology: (topologyId: string) => Topology | null;
