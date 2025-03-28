@@ -34,7 +34,8 @@ export interface TopologyConfiguration {
   disjointedSpines: boolean;
   railOptimized: boolean;
   switchCost: SwitchCost;
-  opticsCost: OpticsCost;
+  opticsCost: OpticsCost;      // Keep as an object
+  opticsPower?: number;        // Optional property for simplified optics power (per unit)
   powerUsage: PowerUsage;
   latencyParameters: LatencyParameters;
   rackSpaceParameters: RackSpaceParameters;

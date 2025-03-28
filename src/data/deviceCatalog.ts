@@ -4,10 +4,23 @@
  * This file contains a catalog of network devices with their specifications.
  * The catalog is organized by device type (spine, leaf) and includes detailed
  * specifications for each device model.
+ * 
+ * The catalog has been enhanced to support a unified device model where devices
+ * can fulfill multiple roles (spine, leaf) based on their capabilities.
  */
 
-import { Device, LeafDevice, DeviceCatalog } from '../types/devices';
+import { 
+  Device, 
+  LeafDevice, 
+  DeviceCatalog, 
+  DeviceRole,
+  canFulfillRole,
+  getDeviceRoles
+} from '../types/devices';
 
+/**
+ * The original device catalog structure maintained for backward compatibility
+ */
 const deviceCatalog: DeviceCatalog = {
   spine: [
     {
@@ -177,5 +190,85 @@ export const getDevicesByManufacturer = (deviceType: 'spine' | 'leaf', manufactu
   if (!deviceCatalog[deviceType]) return [];
   return deviceCatalog[deviceType].filter(device => device.manufacturer === manufacturer);
 };
+
+/**
+ * NEW UNIFIED DEVICE MODEL FUNCTIONS
+ * These functions provide a unified view of devices across roles
+ */
+
+/**
+ * Get all devices available in the catalog (both spine and leaf)
+ */
+export const getAllDevices = (): Device[] => {
+  // Combine spine and leaf devices, ensuring no duplicates by ID
+  const allDevices = [...deviceCatalog.spine];
+  const spineIds = new Set(allDevices.map(d => d.id));
+  
+  // Only add leaf devices that aren't already in the spine list
+  deviceCatalog.leaf.forEach(leafDevice => {
+    if (!spineIds.has(leafDevice.id)) {
+      allDevices.push(leafDevice);
+    }
+  });
+  
+  return allDevices;
+};
+
+/**
+ * Get all devices that can fulfill a specific role
+ */
+export const getDevicesByRole = (role: DeviceRole): Device[] => {
+  return getAllDevices().filter(device => canFulfillRole(device, role));
+};
+
+/**
+ * Get all devices by manufacturer that can fulfill a specific role
+ */
+export const getDevicesByManufacturerAndRole = (manufacturer: string, role: DeviceRole): Device[] => {
+  return getDevicesByRole(role).filter(device => device.manufacturer === manufacturer);
+};
+
+/**
+ * Get all manufacturers that have devices for a specific role
+ */
+export const getManufacturersByRole = (role: DeviceRole): string[] => {
+  const devices = getDevicesByRole(role);
+  return [...new Set(devices.map(device => device.manufacturer))];
+};
+
+/**
+ * Assign explicit roles to devices in the catalog
+ * This is for internal use to initialize the unified model
+ */
+const assignExplicitRoles = () => {
+  // Assign roles to spine devices
+  deviceCatalog.spine.forEach(device => {
+    device.roles = ['spine'];
+    
+    // Check if this device can also work as a leaf
+    if (device.downlinkOptions && device.downlinkOptions.length > 0) {
+      device.roles.push('leaf');
+    }
+  });
+  
+  // Assign roles to leaf devices
+  deviceCatalog.leaf.forEach(device => {
+    // Always add 'leaf' role
+    device.roles = ['leaf'];
+    
+    // Some high-performance leaf switches might also work as spines
+    // This is just a placeholder logic - you'd have real criteria
+    const highSpeedPorts = device.portConfigurations.some(
+      config => config.speed === "400G" || config.speed === "800G"
+    );
+    
+    if (highSpeedPorts) {
+      device.roles.push('spine');
+    }
+  });
+};
+
+// Initialize roles when the module is loaded
+assignExplicitRoles();
 
 export default deviceCatalog;

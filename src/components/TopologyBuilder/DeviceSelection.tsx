@@ -16,7 +16,8 @@ import {
   IconButton,
   Tooltip,
   Chip,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Badge
 } from '@mui/material';
 import DeviceSpecificationVisualizer from './DeviceSpecificationVisualizer';
 import AddIcon from '@mui/icons-material/Add';
@@ -26,7 +27,13 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeviceManagementService from '../../services/DeviceManagementService';
 import AddManufacturerDialog from './AddManufacturerDialog';
 import DeviceFormDialog from './DeviceFormDialog';
-import { Device, LeafDevice } from '../../types/devices';
+import { 
+  Device, 
+  LeafDevice, 
+  DeviceRole,
+  canFulfillRole,
+  getDeviceRoles
+} from '../../types/devices';
 
 // Interface for Topology configuration props
 interface DeviceSelectionProps {
@@ -678,20 +685,45 @@ const DeviceSelection: React.FC<DeviceSelectionProps> = ({ topology, setTopology
                       label="Model"
                       onChange={handleSpineDeviceChange}
                     >
-                      {spineDevices.map((device) => (
-                        <MenuItem key={device.id} value={device.id}>
-                          {device.model}
-                          {device.isBuiltIn ? null : (
-                            <Chip 
-                              label="Custom" 
-                              size="small" 
-                              color="primary" 
-                              variant="outlined" 
-                              sx={{ ml: 1, height: 20 }} 
-                            />
-                          )}
-                        </MenuItem>
-                      ))}
+                      {spineDevices.map((device) => {
+                        // Get device roles
+                        const roles = getDeviceRoles(device);
+                        const canBeLeaf = roles.includes('leaf');
+                        
+                        return (
+                          <MenuItem key={device.id} value={device.id}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                              <Typography sx={{ flexGrow: 1 }}>{device.model}</Typography>
+                              
+                              <Box sx={{ display: 'flex', ml: 1 }}>
+                                {/* Role indicators */}
+                                {canBeLeaf && (
+                                  <Tooltip title="Can also be used as Leaf">
+                                    <Chip 
+                                      label="Leaf" 
+                                      size="small" 
+                                      color="success" 
+                                      variant="outlined" 
+                                      sx={{ ml: 0.5, height: 20 }} 
+                                    />
+                                  </Tooltip>
+                                )}
+                                
+                                {/* Custom indicator */}
+                                {!device.isBuiltIn && (
+                                  <Chip 
+                                    label="Custom" 
+                                    size="small" 
+                                    color="primary" 
+                                    variant="outlined" 
+                                    sx={{ ml: 0.5, height: 20 }} 
+                                  />
+                                )}
+                              </Box>
+                            </Box>
+                          </MenuItem>
+                        );
+                      })}
                     </Select>
                   </FormControl>
                 </Grid>
@@ -875,20 +907,45 @@ const DeviceSelection: React.FC<DeviceSelectionProps> = ({ topology, setTopology
                       label="Model"
                       onChange={handleLeafDeviceChange}
                     >
-                      {leafDevices.map((device) => (
-                        <MenuItem key={device.id} value={device.id}>
-                          {device.model}
-                          {device.isBuiltIn ? null : (
-                            <Chip 
-                              label="Custom" 
-                              size="small" 
-                              color="primary" 
-                              variant="outlined" 
-                              sx={{ ml: 1, height: 20 }} 
-                            />
-                          )}
-                        </MenuItem>
-                      ))}
+                      {leafDevices.map((device) => {
+                        // Get device roles
+                        const roles = getDeviceRoles(device);
+                        const canBeSpine = roles.includes('spine');
+                        
+                        return (
+                          <MenuItem key={device.id} value={device.id}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                              <Typography sx={{ flexGrow: 1 }}>{device.model}</Typography>
+                              
+                              <Box sx={{ display: 'flex', ml: 1 }}>
+                                {/* Role indicators */}
+                                {canBeSpine && (
+                                  <Tooltip title="Can also be used as Spine">
+                                    <Chip 
+                                      label="Spine" 
+                                      size="small" 
+                                      color="success" 
+                                      variant="outlined" 
+                                      sx={{ ml: 0.5, height: 20 }} 
+                                    />
+                                  </Tooltip>
+                                )}
+                                
+                                {/* Custom indicator */}
+                                {!device.isBuiltIn && (
+                                  <Chip 
+                                    label="Custom" 
+                                    size="small" 
+                                    color="primary" 
+                                    variant="outlined" 
+                                    sx={{ ml: 0.5, height: 20 }} 
+                                  />
+                                )}
+                              </Box>
+                            </Box>
+                          </MenuItem>
+                        );
+                      })}
                     </Select>
                   </FormControl>
                 </Grid>

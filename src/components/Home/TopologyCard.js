@@ -24,7 +24,7 @@ import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
 import PaidIcon from '@mui/icons-material/Paid';
 import DevicesIcon from '@mui/icons-material/Devices';
-import SpeedIcon from '@mui/icons-material/Speed';
+import BoltIcon from '@mui/icons-material/Bolt';
 
 const TopologyCard = ({ 
   topology, 
@@ -57,6 +57,15 @@ const TopologyCard = ({
       maximumFractionDigits: 0
     }).format(value);
   };
+  
+  // Format power values (watts to kilowatts when appropriate)
+  const formatPower = (watts) => {
+    if (watts < 1000) {
+      return `${watts} W`;
+    } else {
+      return `${(watts / 1000).toFixed(2)} kW`;
+    }
+  };
 
   // Get status indicator for each metric
   const getStatusIndicator = (value, threshold1, threshold2, lowerIsBetter = false) => {
@@ -74,16 +83,11 @@ const TopologyCard = ({
   // Determine cost status
   const costStatus = getStatusIndicator(metrics.cost.total, 100000, 150000, true);
   
-  // Determine oversubscription status (lower is better)
-  const oversubStatus = getStatusIndicator(
-    parseFloat(metrics.oversubscription.ratio), 
-    2.5, 
-    4, 
-    true
-  );
-  
   // Determine device count status (depends on requirements, using arbitrary thresholds)
   const deviceStatus = getStatusIndicator(metrics.deviceCount.total, 20, 40, true);
+  
+  // Determine power status (lower is better for power consumption)
+  const powerStatus = getStatusIndicator(metrics.power.total, 1000, 2000, true);
 
   return (
     <Card 
@@ -154,12 +158,12 @@ const TopologyCard = ({
           
           <Grid item xs={4}>
             <Stack direction="row" alignItems="center" spacing={1}>
-              <SpeedIcon fontSize="small" />
+              <BoltIcon fontSize="small" />
               <Box>
-                <Typography variant="caption" color="text.secondary">Oversub.</Typography>
+                <Typography variant="caption" color="text.secondary">Power</Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2" mr={0.5}>{metrics.oversubscription.ratio}:1</Typography>
-                  {oversubStatus.icon}
+                  <Typography variant="body2" mr={0.5}>{formatPower(metrics.power.total)}</Typography>
+                  {powerStatus.icon}
                 </Box>
               </Box>
             </Stack>

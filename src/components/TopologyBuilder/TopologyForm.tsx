@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useTopology } from '../../context/TopologyContext';
 import { exportTopology } from '../../utils/importExport';
 import DeviceSelection from './DeviceSelection';
+import CostPowerConfigPanel from './CostPowerConfigPanel';
+import DeviceManagementService from '../../services/DeviceManagementService';
 import { 
   Box, 
   Card, 
@@ -34,6 +36,7 @@ import {
   SpineConfig,
   LeafConfig
 } from '../../types/topology';
+import { LeafDevice } from '../../types/devices';
 
 // Interface for TabPanel props
 interface TabPanelProps {
@@ -398,12 +401,21 @@ const TopologyForm: React.FC = () => {
   const renderCostPower = () => {
     return (
       <TabPanel value={tabValue} index={3}>
-        <Typography variant="h6">Cost and Power Configuration</Typography>
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Typography>Cost and power metrics for the topology.</Typography>
-          </Grid>
-        </Grid>
+        <CostPowerConfigPanel 
+          topology={topology}
+          setTopology={setTopology}
+          selectedSpineDevice={
+            topology.configuration.deviceSelection?.spine?.deviceId 
+              ? DeviceManagementService.sync.getDeviceById('spine', topology.configuration.deviceSelection.spine.deviceId)
+              : null
+          }
+          selectedLeafDevice={
+            topology.configuration.deviceSelection?.leaf?.deviceId 
+              ? DeviceManagementService.sync.getDeviceById('leaf', topology.configuration.deviceSelection.leaf.deviceId) as LeafDevice
+              : null
+          }
+          panelType="detailed"
+        />
       </TabPanel>
     );
   };

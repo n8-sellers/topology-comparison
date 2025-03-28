@@ -3,9 +3,21 @@ import builtInDeviceCatalog, {
   getDeviceById as getBuiltInDeviceById,
   getDevicesByType as getBuiltInDevicesByType,
   getManufacturers as getBuiltInManufacturers,
-  getDevicesByManufacturer as getBuiltInDevicesByManufacturer
+  getDevicesByManufacturer as getBuiltInDevicesByManufacturer,
+  // Import new unified device model functions
+  getAllDevices as getAllBuiltInDevices,
+  getDevicesByRole as getBuiltInDevicesByRole,
+  getDevicesByManufacturerAndRole as getBuiltInDevicesByManufacturerAndRole,
+  getManufacturersByRole as getBuiltInManufacturersByRole
 } from '../data/deviceCatalog';
-import { Device, DeviceCatalog, LeafDevice } from '../types/devices';
+import { 
+  Device, 
+  DeviceCatalog, 
+  LeafDevice, 
+  DeviceRole,
+  canFulfillRole,
+  getDeviceRoles
+} from '../types/devices';
 
 // Storage keys
 const CUSTOM_DEVICES_KEY = 'customDevices';
@@ -258,6 +270,65 @@ export const addManufacturer = async (deviceType: DeviceType, manufacturerName: 
   return manufacturerName;
 };
 
+/**
+ * NEW UNIFIED DEVICE MODEL FUNCTIONS
+ * 
+ * These functions provide a unified view of devices across roles
+ * rather than strictly separating by device type
+ */
+
+// Get all devices that can fulfill a specific role
+export const getDevicesByRole = async (role: DeviceRole): Promise<Device[]> => {
+  // Get all devices from both built-in and custom sources
+  const allDevices = await getAllDevices();
+  const combinedDevices: Device[] = [
+    ...allDevices.spine.map(device => ({ ...device, isBuiltIn: isBuiltInDevice('spine', device.id) })),
+    ...allDevices.leaf.map(device => ({ ...device, isBuiltIn: isBuiltInDevice('leaf', device.id) }))
+  ];
+  
+  // Filter by role
+  return combinedDevices.filter(device => canFulfillRole(device, role));
+};
+
+// Get all devices by manufacturer that can fulfill a specific role
+export const getDevicesByManufacturerAndRole = async (manufacturer: string, role: DeviceRole): Promise<Device[]> => {
+  const devices = await getDevicesByRole(role);
+  return devices.filter(device => device.manufacturer === manufacturer);
+};
+
+// Get all manufacturers that have devices for a specific role
+export const getManufacturersByRole = async (role: DeviceRole): Promise<string[]> => {
+  const devices = await getDevicesByRole(role);
+  return [...new Set(devices.map(device => device.manufacturer))];
+};
+
+// Create a device template with role-specific defaults
+export const createDeviceTemplateForRole = (role: DeviceRole): Device => {
+  const baseTemplate: Device = {
+    id: '', // This will be generated when actually adding the device
+    manufacturer: '',
+    model: '',
+    description: '',
+    portConfigurations: [
+      { count: 32, speed: '400G', breakoutOptions: ['1x400G', '4x100G'] }
+    ],
+    powerConsumption: { typical: 500, max: 1000 },
+    rackUnits: role === 'spine' ? 2 : 1,
+    cost: role === 'spine' ? 40000 : 25000,
+    thermalOutput: 5000,
+    weight: role === 'spine' ? 12 : 8,
+    dimensions: { height: role === 'spine' ? 8.9 : 4.4, width: 44.5, depth: 52.0 },
+    roles: [role] // Assign the specific role
+  };
+  
+  // Add downlink options for leaf role
+  if (role === 'leaf') {
+    baseTemplate.downlinkOptions = ['10G', '25G', '40G', '100G', '400G'];
+  }
+  
+  return baseTemplate;
+};
+
 // Create a named object for export
 const DeviceManagementService = {
   // Async versions for direct use
@@ -274,12 +345,24 @@ const DeviceManagementService = {
   addManufacturer,
   cloneDevice,
   
+  // New unified device model functions
+  getDevicesByRole,
+  getDevicesByManufacturerAndRole,
+  getManufacturersByRole,
+  createDeviceTemplateForRole,
+  
   // Sync versions for backward compatibility
   sync: {
     getDeviceById: getBuiltInDeviceById,
     getDevicesByType: getBuiltInDevicesByType,
     getManufacturers: getBuiltInManufacturers,
-    getDevicesByManufacturer: getBuiltInDevicesByManufacturer
+    getDevicesByManufacturer: getBuiltInDevicesByManufacturer,
+    
+    // Sync versions of unified model functions
+    getAllDevices: getAllBuiltInDevices,
+    getDevicesByRole: getBuiltInDevicesByRole,
+    getDevicesByManufacturerAndRole: getBuiltInDevicesByManufacturerAndRole,
+    getManufacturersByRole: getBuiltInManufacturersByRole
   }
 };
 

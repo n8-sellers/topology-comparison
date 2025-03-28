@@ -247,7 +247,6 @@ const TopologyMetrics: React.FC = () => {
       'Cost Efficiency',
       'Power Efficiency',
       'Latency',
-      'Oversubscription',
       'Rack Space',
       'Cabling Complexity'
     ],
@@ -262,8 +261,6 @@ const TopologyMetrics: React.FC = () => {
           100 - Math.min(100, (metrics.power.total / 10000) * 20),
           // Lower is better for latency, so invert the scale
           100 - Math.min(100, metrics.latency.total * 20),
-          // Lower is better for oversubscription, so invert the scale
-          100 - Math.min(100, parseFloat(metrics.oversubscription.ratio) * 25),
           // Lower is better for rack space, so invert the scale
           100 - Math.min(100, metrics.rackSpace.totalRackUnits / 2),
           // Lower is better for cabling, so invert the scale
@@ -346,9 +343,6 @@ const TopologyMetrics: React.FC = () => {
               case 'Latency':
                 explanation = ` (Lower latency is better)`;
                 break;
-              case 'Oversubscription':
-                explanation = ` (Lower oversubscription is better)`;
-                break;
               case 'Rack Space':
                 explanation = ` (Less rack space is better)`;
                 break;
@@ -370,8 +364,6 @@ const TopologyMetrics: React.FC = () => {
                 return `Actual power: ${formatPower(metrics.power.total)}`;
               case 'Latency':
                 return `Actual latency: ${metrics.latency.total.toFixed(2)} μs`;
-              case 'Oversubscription':
-                return `Actual ratio: ${metrics.oversubscription.ratio}:1`;
               case 'Rack Space':
                 return `Actual space: ${metrics.rackSpace.totalRackUnits} U`;
               case 'Cabling Complexity':
@@ -714,62 +706,10 @@ const TopologyMetrics: React.FC = () => {
                   </Zoom>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <Zoom in={!loading} style={{ transitionDelay: '400ms' }}>
-                    <Tooltip 
-                      title={
-                        <React.Fragment>
-                          <Typography color="inherit" variant="subtitle2">Oversubscription Details</Typography>
-                          <Typography variant="body2">Total Leaf Uplink Bandwidth: {formatNumber(metrics.oversubscription.uplinkCapacity)} Gbps</Typography>
-                          <Typography variant="body2">Total Leaf Downlink Bandwidth: {formatNumber(metrics.oversubscription.downlinkCapacity)} Gbps</Typography>
-                          <Typography variant="body2">Calculation: Downlink Bandwidth ÷ Uplink Bandwidth</Typography>
-                          <Typography variant="body2">
-                            {metrics.oversubscription.ratio <= '1.00' 
-                              ? "Non-blocking fabric (full bisection bandwidth)" 
-                              : parseFloat(metrics.oversubscription.ratio) <= 2 
-                                ? "Moderate oversubscription" 
-                                : "High oversubscription ratio"}
-                          </Typography>
-                        </React.Fragment>
-                      } 
-                      arrow 
-                      placement="top"
-                    >
-                      <Paper 
-                        elevation={2} 
-                        sx={{ 
-                          p: 2, 
-                          height: '100%', 
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            transform: 'translateY(-4px)',
-                            boxShadow: 4
-                          }
-                        }}
-                      >
-                        <Typography variant="subtitle2" color="textSecondary">
-                          Oversubscription Ratio
-                        </Typography>
-                        <Typography variant="h4">
-                          {metrics.oversubscription.ratio}:1
-                        </Typography>
-                        <Typography variant="body2">
-                          Aggregate Uplink: {formatNumber(metrics.oversubscription.uplinkCapacity)} Gbps
-                        </Typography>
-                        <Typography variant="body2">
-                          Aggregate Downlink: {formatNumber(metrics.oversubscription.downlinkCapacity)} Gbps
-                        </Typography>
-                        <Typography variant="body2">
-                          Uplink Ports: {metrics.oversubscription.uplinkPortsPerLeaf} per leaf
-                        </Typography>
-                        <Typography variant="body2">
-                          Downlink Ports: {metrics.oversubscription.downlinkPortsPerLeaf} per leaf
-                        </Typography>
-                      </Paper>
-                    </Tooltip>
-                  </Zoom>
+                  {/* Oversubscription ratio card removed */}
                 </Grid>
                 {currentTopology.configuration.deviceSelection?.spine?.deviceId ? (
-                  <Grid item xs={12} sm={6} md={3}>
+                  <Grid item xs={12} sm={6} md={4}>
                     <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="textSecondary">
                         Spine Switch
@@ -810,7 +750,7 @@ const TopologyMetrics: React.FC = () => {
                     </Paper>
                   </Grid>
                 ) : currentTopology.configuration.spineConfig ? (
-                  <Grid item xs={12} sm={6} md={3}>
+                  <Grid item xs={12} sm={6} md={4}>
                     <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="textSecondary">
                         Spine Configuration
@@ -829,7 +769,7 @@ const TopologyMetrics: React.FC = () => {
                 ) : null}
                 
                 {currentTopology.configuration.deviceSelection?.leaf?.deviceId ? (
-                  <Grid item xs={12} sm={6} md={3}>
+                  <Grid item xs={12} sm={6} md={4}>
                     <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="textSecondary">
                         Leaf Switch

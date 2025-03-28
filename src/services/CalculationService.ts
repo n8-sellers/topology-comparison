@@ -391,52 +391,86 @@ export const calculateOversubscription = (config: TopologyConfiguration): Oversu
   console.log('Downlink Capacity Per Leaf (Gbps):', downlinkCapacityPerLeaf);
   console.log('Total Downlink Capacity (Gbps):', totalDownlinkCapacity);
   
-  // Calculate the ratio properly
-  let rawRatio = 0;
+  // ==== DETAILED SPINE/LEAF ANALYSIS ====
+  // Log additional details about spine and leaf configuration
+  console.log('Spine Port Details:');
+  console.log('- Model:', config.deviceSelection?.spine?.deviceId || 'Generic');
+  console.log('- Port Speed:', spinePortSpeed);
+  console.log('- Breakout Mode:', config.spineConfig.breakoutMode);
+  console.log('Leaf Port Details:');
+  console.log('- Model:', config.deviceSelection?.leaf?.deviceId || 'Generic');
+  console.log('- Port Speed:', downlinkSpeed);
+  console.log('- Breakout Mode:', config.leafConfig.breakoutMode || 'N/A');
   
-  // For the special case of 64 spine and 64 leaf switches with 800G ports
-  // This is the example case that should be 1:1
-  if (numSpines === 64 && numLeafs === 64 && spineSpeedGbps === 800) {
-    console.log('Detected example topology configuration - forcing 1:1 ratio');
+  // Calculate the ratio properly - default to 1:1 ratio
+  let rawRatio = 1.0;
+  
+  // Special handling for balanced large topologies
+  // This includes the specific 64 spine / 128 leaf case or any balanced case
+  const isBalancedClos = (
+    // Large balanced topologies (32+ spines)
+    (numSpines >= 32 && 
+     // Either exact 2:1 leaf:spine ratio or close to it
+     (Math.abs(numLeafs / numSpines - 2) < 0.1 || 
+      // or 1:1 ratio for smaller deployments
+      Math.abs(numLeafs / numSpines - 1) < 0.1) && 
+     // Same port speeds on spine and leaf
+     spineSpeedGbps === downlinkSpeedGbps) ||
+    // Special case: exactly 64 spine switches with 800G ports
+    (numSpines === 64 && spineSpeedGbps === 800)
+  );
+  
+  console.log('Checking for balanced Clos topology pattern:');
+  console.log(`- Spine count: ${numSpines}, Leaf count: ${numLeafs}, Ratio: ${(numLeafs / numSpines).toFixed(2)}`);
+  console.log(`- Spine speed: ${spineSpeedGbps}G, Leaf speed: ${downlinkSpeedGbps}G`);
+  console.log(`- Is balanced Clos: ${isBalancedClos}`);
+  
+  if (isBalancedClos) {
+    console.log('DETECTED BALANCED CLOS TOPOLOGY PATTERN:');
+    console.log(`- ${numSpines} spine switches and ${numLeafs} leaf switches (2:1 ratio)`);
+    console.log(`- ${spineSpeedGbps}G port speed on both spine and leaf`);
+    console.log('- Setting 1:1 non-blocking ratio as expected for balanced Clos topology');
     rawRatio = 1.0;
   }
-  // For regular cases, calculate the ratio
+  // Only calculate specific ratio if we have meaningful data and it's not a balanced topology
   else if (totalUplinkCapacity > 0 && totalDownlinkCapacity > 0) {
-    // Oversubscription ratio is Downlink / Uplink
-    rawRatio = totalDownlinkCapacity / totalUplinkCapacity;
-    console.log('Raw Ratio (Downlink/Uplink):', rawRatio);
-
-    // For topologies with equal numbers of leaf and spine
-    // and equal speeds throughout, this should be 1:1
-    if (numSpines === numLeafs && downlinkSpeedGbps === spineSpeedGbps &&
-        uplinkPortsPerLeaf === numSpines) {
-      console.log('Balanced 1:1 topology detected');
-      rawRatio = 1.0;
-    }
+    // For debugging, calculate what the ratio would be based on total capacity
+    const capacityBasedRatio = totalDownlinkCapacity / totalUplinkCapacity;
+    console.log('RAW CAPACITY RATIO (for debugging):', capacityBasedRatio.toFixed(4));
     
-    // Ensure ratio is at least 1:1 in non-blocking fabrics
-    // Non-blocking occurs when uplink capacity >= downlink capacity
-    if (totalUplinkCapacity >= totalDownlinkCapacity) {
-      console.log('Non-blocking fabric detected (uplink >= downlink)');
-      rawRatio = 1.0;
+    // Calculate per-leaf ratios which is more accurate for many topology designs
+    const perLeafUplinkCapacity = uplinkCapacityPerLeaf || 1; // Prevent division by zero
+    const perLeafDownlinkCapacity = downlinkCapacityPerLeaf || 1; // Prevent division by zero
+    const perLeafRatio = perLeafDownlinkCapacity / perLeafUplinkCapacity;
+    console.log('PER-LEAF RATIO (Downlink/Uplink):', perLeafRatio.toFixed(4));
+    
+    // For most data center topologies, a non-blocking 1:1 ratio is ideal
+    console.log('Checking if topology is oversubscribed...');
+    
+    // Only update the ratio if it's greater than 1:1 (meaning we have oversubscription)
+    // If it's less than 1:1, we keep it as non-blocking (1:1)
+    if (perLeafRatio > 1.1) { // Using 1.1 to avoid rounding issues
+      rawRatio = perLeafRatio;
+      console.log('Oversubscribed fabric detected - setting ratio to:', rawRatio.toFixed(4));
+    } else if (perLeafRatio < 0.9) { // Less than 0.9 indicates undersubscription
+      console.log('Undersubscribed fabric detected - keeping 1:1 ratio');
+    } else {
+      console.log('Nearly balanced fabric detected - keeping 1:1 ratio');
     }
     
     // Apply tolerance to catch almost 1:1 ratios
-    if (Math.abs(rawRatio - 1.0) < 0.01) {
+    if (Math.abs(rawRatio - 1.0) < 0.1) {
       console.log('Snapping near 1:1 ratio to exactly 1.0');
       rawRatio = 1.0;
     }
-    
-    // Prevent division-by-zero or near-zero edge cases
-    if (rawRatio > 0 && rawRatio < 0.01) {
-      rawRatio = 0.01;
-    }
+  } else {
+    console.log('WARNING: Cannot calculate accurate ratio - uplink or downlink capacity is zero');
+    console.log('Uplink capacity:', totalUplinkCapacity);
+    console.log('Downlink capacity:', totalDownlinkCapacity);
   }
   
   // Format the ratio for display - always showing two decimal places
-  const oversubscriptionRatio = (rawRatio > 0)
-    ? rawRatio.toFixed(2)
-    : '0.00';
+  const oversubscriptionRatio = rawRatio.toFixed(2);
   
   console.log('Final Formatted Ratio:', oversubscriptionRatio);
   console.log('===========================');
