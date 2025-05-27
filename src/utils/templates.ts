@@ -269,14 +269,13 @@ export const getTemplateByName = (name: string): Topology | undefined => {
 export const applyTemplate = (topology: Topology, templateName: string): Topology => {
   const template = getTemplateByName(templateName);
   if (!template) return topology;
-  
+
   return {
     ...topology,
     name: template.name,
     description: template.description,
-    configuration: {
-      ...template.configuration
-    }
+    // Deep clone configuration to avoid mutating the template object
+    configuration: JSON.parse(JSON.stringify(template.configuration))
   };
 };
 
