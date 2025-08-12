@@ -60,7 +60,7 @@ type BarChartData = ChartData<'bar', number[], string>;
 type DoughnutChartData = ChartData<'doughnut', number[], string>;
 type RadarChartData = ChartData<'radar', number[], string>;
 
-const TopologyMetrics: React.FC = () => {
+const TopologyMetrics = () => {
   const { currentTopology } = useTopology();
   const [metrics, setMetrics] = useState<TopologyMetricsType | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

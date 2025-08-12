@@ -51,7 +51,7 @@ interface ValidationErrors {
 }
 
 // TabPanel component for the tabbed interface
-const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
+const TabPanel = ({ children, value, index }: TabPanelProps) => {
   return (
     <div
       role="tabpanel"
@@ -80,8 +80,8 @@ const snapToCommonValue = (value: number, commonValues: number[], snapThreshold 
   return value;
 };
 
-const TopologyForm: React.FC = () => {
-  const { 
+const TopologyForm = () => {
+  const {
     currentTopology, 
     createTopology, 
     updateTopology, 

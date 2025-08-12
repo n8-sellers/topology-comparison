@@ -25,11 +25,11 @@ const metricRanges = {
   portDensity: { min: 16, max: 64 }
 };
 
-const DeviceSpecificationVisualizer: React.FC<DeviceSpecificationVisualizerProps> = ({ 
+const DeviceSpecificationVisualizer = ({ 
   device, 
   deviceType,
   allDevices = []
-}) => {
+}: DeviceSpecificationVisualizerProps) => {
   // Calculate port density (ports per rack unit)
   const calculatePortDensity = (device: Device | LeafDevice): number => {
     if (!device.portConfigurations || device.portConfigurations.length === 0) return 0;

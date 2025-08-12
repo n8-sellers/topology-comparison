@@ -140,7 +140,7 @@ const defaultTopology: Omit<Topology, 'id' | 'createdAt' | 'updatedAt'> = {
   }
 };
 
-export const TopologyProvider: React.FC<ProviderProps> = ({ children }) => {
+export const TopologyProvider = ({ children }: ProviderProps) => {
   const [topologies, setTopologies] = useState<Topology[]>([]);
   const [currentTopology, setCurrentTopology] = useState<Topology | null>(null);
   const [comparisonTopologies, setComparisonTopologies] = useState<string[]>([]);

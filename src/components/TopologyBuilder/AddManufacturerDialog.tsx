@@ -21,12 +21,12 @@ interface AddManufacturerDialogProps {
   deviceTypes?: string[];
 }
 
-const AddManufacturerDialog: React.FC<AddManufacturerDialogProps> = ({ 
+const AddManufacturerDialog = ({ 
   open, 
   onClose, 
   onAdd, 
   deviceTypes = ['spine', 'leaf'] 
-}) => {
+}: AddManufacturerDialogProps) => {
   const [manufacturerName, setManufacturerName] = useState<string>('');
   const [deviceType, setDeviceType] = useState<string>(deviceTypes[0]);
   const [error, setError] = useState<string>('');

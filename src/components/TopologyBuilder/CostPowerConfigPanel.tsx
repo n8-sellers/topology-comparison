@@ -42,14 +42,14 @@ interface OverrideSettings {
  * Shared component for cost and power settings
  * Used in both DeviceSelection and Cost & Power tabs
  */
-const CostPowerConfigPanel: React.FC<CostPowerConfigPanelProps> = ({
+const CostPowerConfigPanel = ({
   topology,
   setTopology,
   selectedSpineDevice,
   selectedLeafDevice,
   panelType = 'compact',
   opticConfig = true
-}) => {
+}: CostPowerConfigPanelProps) => {
   // State for tracking which values are overridden from device defaults
   const [overrides, setOverrides] = React.useState<OverrideSettings>({
     spineCost: true,

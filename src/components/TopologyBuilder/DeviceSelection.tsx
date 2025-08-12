@@ -82,7 +82,7 @@ interface CompatibilityResult {
   issues: string[];
 }
 
-const DeviceSelection: React.FC<DeviceSelectionProps> = ({ topology, setTopology }) => {
+const DeviceSelection = ({ topology, setTopology }: DeviceSelectionProps) => {
   const [spineManufacturers, setSpineManufacturers] = useState<string[]>([]);
   const [leafManufacturers, setLeafManufacturers] = useState<string[]>([]);
   const [spineDevices, setSpineDevices] = useState<Device[]>([]);

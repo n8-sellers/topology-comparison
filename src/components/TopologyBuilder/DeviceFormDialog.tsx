@@ -46,7 +46,7 @@ interface FormErrors {
   [key: string]: string;
 }
 
-const DeviceFormDialog: React.FC<DeviceFormDialogProps> = ({ 
+const DeviceFormDialog = ({ 
   open, 
   onClose, 
   onSave, 
@@ -54,7 +54,7 @@ const DeviceFormDialog: React.FC<DeviceFormDialogProps> = ({
   manufacturer, 
   device = null, 
   isEdit = false 
-}) => {
+}: DeviceFormDialogProps) => {
   // Initialize form state with device data or template
   const [formData, setFormData] = useState<Device | LeafDevice | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
