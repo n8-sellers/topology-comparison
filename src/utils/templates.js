@@ -89,7 +89,7 @@ const smallLeafSpine = {
     ...baseTemplate.configuration,
     numSpines: 2,
     numLeafs: 4,
-    numTiers: 1,
+    numTiers: 2,  // Fixed: 2-tier for spine-leaf
     spineConfig: {
       portCount: 64,
       portSpeed: '400G',
@@ -111,7 +111,7 @@ const mediumLeafSpine = {
     ...baseTemplate.configuration,
     numSpines: 4,
     numLeafs: 16,
-    numTiers: 1,
+    numTiers: 2,  // Fixed: 2-tier for spine-leaf
     spineConfig: {
       portCount: 64,
       portSpeed: '400G',
@@ -133,7 +133,7 @@ const largeLeafSpine = {
     ...baseTemplate.configuration,
     numSpines: 8,
     numLeafs: 64,
-    numTiers: 1,
+    numTiers: 2,  // Fixed: 2-tier for spine-leaf
     spineConfig: {
       portCount: 64,
       portSpeed: '800G',
@@ -177,7 +177,7 @@ const highDensityBreakout = {
     ...baseTemplate.configuration,
     numSpines: 4,
     numLeafs: 32,
-    numTiers: 1,
+    numTiers: 2,  // Fixed: 2-tier for spine-leaf
     spineConfig: {
       portCount: 64,
       portSpeed: '800G',
@@ -199,7 +199,7 @@ const disjointedSpines = {
     ...baseTemplate.configuration,
     numSpines: 4,
     numLeafs: 16,
-    numTiers: 1,
+    numTiers: 2,  // Fixed: 2-tier for spine-leaf
     disjointedSpines: true,
     spineConfig: {
       portCount: 64,
@@ -222,7 +222,7 @@ const railOptimized = {
     ...baseTemplate.configuration,
     numSpines: 4,
     numLeafs: 24,
-    numTiers: 1,
+    numTiers: 2,  // Fixed: 2-tier for spine-leaf
     railOptimized: true,
     spineConfig: {
       portCount: 64,
@@ -236,8 +236,31 @@ const railOptimized = {
   }
 };
 
+// Template for a Rail-Only (single-tier) topology
+const railOnlyTopology = {
+  ...baseTemplate,
+  name: 'Rail-Only (Single-Tier)',
+  description: 'A single-tier leaf-only topology where leaf switches connect directly to each other. Suitable for small deployments or edge locations.',
+  configuration: {
+    ...baseTemplate.configuration,
+    numSpines: 0,  // No spine switches in Rail-Only
+    numLeafs: 8,
+    numTiers: 1,   // Single tier
+    spineConfig: {
+      portCount: 0,
+      portSpeed: '400G',
+      breakoutMode: '1x400G'
+    },
+    leafConfig: {
+      portCount: 48,
+      downlinkSpeed: '100G'
+    }
+  }
+};
+
 // Export all templates
 export const templates = [
+  railOnlyTopology,  // New Rail-Only template
   smallLeafSpine,
   mediumLeafSpine,
   largeLeafSpine,

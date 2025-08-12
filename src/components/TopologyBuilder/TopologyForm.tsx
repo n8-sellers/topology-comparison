@@ -514,6 +514,21 @@ const TopologyForm = () => {
         
         {/* Basic Configuration Tab */}
         <TabPanel value={tabValue} index={0}>
+          {/* Rail-Only Mode Indicator */}
+          {topology.configuration.numTiers === 1 && topology.configuration.numSpines === 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Chip 
+                label="Rail-Only Topology (Single-Tier)" 
+                color="info" 
+                icon={<InfoIcon />}
+                sx={{ mr: 1 }}
+              />
+              <Typography variant="caption" color="text.secondary">
+                In Rail-Only mode, leaf switches connect directly to each other without spine switches.
+              </Typography>
+            </Box>
+          )}
+          
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
               <Typography gutterBottom>
@@ -589,20 +604,36 @@ const TopologyForm = () => {
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <Typography gutterBottom>Number of Tiers</Typography>
+              <Typography gutterBottom>
+                Number of Tiers
+                <Tooltip title="1 tier = Rail-Only (leaf only), 2 tiers = Spine-Leaf, 3 tiers = Super-Spine-Spine-Leaf">
+                  <IconButton size="small" sx={{ ml: 1 }}>
+                    <InfoIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Typography>
               <Slider
                 value={topology.configuration.numTiers}
                 onChange={(_e: Event, value: number | number[]) => {
                   const numericValue = Array.isArray(value) ? value[0] : value;
+                  // When switching to single-tier, automatically set spines to 0
+                  if (numericValue === 1) {
+                    handleConfigChange('numSpines', 0);
+                    handleConfigChange('numTiers', 1);
+                  } 
                   // Enforce minimum tier value of 2 when spine switches exist
-                  if (topology.configuration.numSpines > 0 && numericValue < 2) {
+                  else if (topology.configuration.numSpines > 0 && numericValue < 2) {
                     handleConfigChange('numTiers', 2);
                   } else {
                     handleConfigChange('numTiers', numericValue);
                   }
                 }}
                 step={1}
-                marks
+                marks={[
+                  { value: 1, label: 'Rail-Only' },
+                  { value: 2, label: 'Spine-Leaf' },
+                  { value: 3, label: '3-Tier' }
+                ]}
                 min={1}
                 max={3}
                 valueLabelDisplay="auto"

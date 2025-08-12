@@ -71,7 +71,7 @@ export const calculateDeviceCount = (config: TopologyConfiguration): DeviceCount
  * @returns Object containing cost breakdown
  */
 export const calculateCost = (config: TopologyConfiguration): CostBreakdown => {
-  const { numSpines, numLeafs, switchCost, opticsCost } = config;
+  const { numSpines, numLeafs, switchCost, opticsCost, numTiers } = config;
   
   // Calculate switch costs
   const spineCost = numSpines * switchCost.spine;
@@ -80,6 +80,33 @@ export const calculateCost = (config: TopologyConfiguration): CostBreakdown => {
   
   // Calculate optics costs
   let totalOpticsCost = 0;
+  
+  // For single-tier (Rail-Only) topologies, calculate leaf-to-leaf connections
+  if (numTiers === 1 && numSpines === 0) {
+    // In a Rail-Only topology, leaves connect directly to each other
+    // Assuming a mesh or ring topology for simplicity
+    // Each leaf connects to 2-4 other leaves typically
+    const connectionsPerLeaf = Math.min(4, numLeafs - 1);
+    const totalConnections = (numLeafs * connectionsPerLeaf) / 2; // Divide by 2 to avoid double counting
+    
+    // Use leaf downlink speed for Rail-Only connections
+    const linkSpeed = config.leafConfig?.downlinkSpeed || '100G';
+    const opticCost = opticsCost[linkSpeed] || 500;
+    
+    // Each connection needs 2 optics (one on each end)
+    totalOpticsCost = totalConnections * 2 * opticCost;
+    
+    // Calculate total cost and return early for single-tier
+    return {
+      switches: {
+        spine: 0,
+        leaf: leafCost,
+        total: leafCost
+      },
+      optics: totalOpticsCost,
+      total: leafCost + totalOpticsCost
+    };
+  }
   
   // Check if we're using the new spine configuration model or the old linkTypes model
   if (config.spineConfig) {
@@ -148,7 +175,7 @@ export const calculateCost = (config: TopologyConfiguration): CostBreakdown => {
  * @returns Object containing power usage breakdown
  */
 export const calculatePowerUsage = (config: TopologyConfiguration): PowerBreakdown => {
-  const { numSpines, numLeafs, powerUsage } = config;
+  const { numSpines, numLeafs, powerUsage, numTiers } = config;
   
   // Calculate switch power usage
   const spinePower = numSpines * powerUsage.spine;
@@ -157,6 +184,31 @@ export const calculatePowerUsage = (config: TopologyConfiguration): PowerBreakdo
   
   // Calculate optics power usage
   let totalOpticsPower = 0;
+  
+  // For single-tier (Rail-Only) topologies, calculate leaf-to-leaf connections
+  if (numTiers === 1 && numSpines === 0) {
+    // In a Rail-Only topology, leaves connect directly to each other
+    const connectionsPerLeaf = Math.min(4, numLeafs - 1);
+    const totalConnections = (numLeafs * connectionsPerLeaf) / 2;
+    
+    // Use leaf downlink speed for Rail-Only connections
+    const linkSpeed = config.leafConfig?.downlinkSpeed || '100G';
+    const opticPower = powerUsage.optics[linkSpeed] || 5;
+    
+    // Each connection needs 2 optics (one on each end)
+    totalOpticsPower = totalConnections * 2 * opticPower;
+    
+    // Return early for single-tier
+    return {
+      switches: {
+        spine: 0,
+        leaf: leafPower,
+        total: leafPower
+      },
+      optics: totalOpticsPower,
+      total: leafPower + totalOpticsPower
+    };
+  }
   
   // Check if we're using the new spine configuration model or the old linkTypes model
   if (config.spineConfig) {
@@ -225,12 +277,22 @@ export const calculatePowerUsage = (config: TopologyConfiguration): PowerBreakdo
  * @returns Object containing latency metrics
  */
 export const calculateLatency = (config: TopologyConfiguration): LatencyMetrics => {
-  const { numTiers, latencyParameters } = config;
+  const { numTiers, numSpines, latencyParameters } = config;
   
-  // In a Clos architecture, the worst-case latency is determined by the number of hops
-  // For a 3-tier Clos (spine-leaf), the worst-case is 2 hops (leaf -> spine -> leaf)
-  // For a 5-tier Clos, the worst-case is 4 hops (leaf -> spine -> super-spine -> spine -> leaf)
-  const hops = numTiers * 2;
+  let hops: number;
+  
+  // Special handling for single-tier (Rail-Only) topologies
+  if (numTiers === 1 && numSpines === 0) {
+    // In a Rail-Only topology, traffic goes directly between leaf switches
+    // Worst case is 1 hop (leaf-to-leaf)
+    hops = 1;
+  } else {
+    // In a Clos architecture, the worst-case latency is determined by the number of tiers
+    // For a 2-tier Clos (spine-leaf), the worst-case is 2 hops (leaf -> spine -> leaf)
+    // For a 3-tier Clos, the worst-case is 4 hops (leaf -> spine -> super-spine -> spine -> leaf)
+    // Formula: (numTiers - 1) * 2 for multi-tier topologies
+    hops = Math.max(2, (numTiers - 1) * 2);
+  }
   
   // Calculate the switch latency
   const switchLatency = hops * latencyParameters.switchLatency;
@@ -256,7 +318,20 @@ export const calculateLatency = (config: TopologyConfiguration): LatencyMetrics 
  * @returns Object containing oversubscription metrics
  */
 export const calculateOversubscription = (config: TopologyConfiguration): OversubscriptionMetrics => {
-  const { numSpines, numLeafs } = config;
+  const { numSpines, numLeafs, numTiers } = config;
+  
+  // For single-tier (Rail-Only) topologies, oversubscription doesn't apply
+  if (numTiers === 1 && numSpines === 0) {
+    // In Rail-Only topology, there are no uplinks/downlinks, just leaf-to-leaf connections
+    // Return N/A values
+    return {
+      uplinkCapacity: 0,
+      downlinkCapacity: 0,
+      uplinkPortsPerLeaf: 0,
+      downlinkPortsPerLeaf: 0,
+      ratio: 'N/A'
+    };
+  }
   
   // Ensure spineConfig exists
   if (!config.spineConfig) {
@@ -514,12 +589,29 @@ export const calculateRackSpace = (config: TopologyConfiguration): RackSpaceMetr
  * @returns Object containing cabling metrics
  */
 export const calculateCabling = (config: TopologyConfiguration): CablingMetrics => {
-  const { numSpines, numLeafs } = config;
+  const { numSpines, numLeafs, numTiers } = config;
   
   // Calculate the total number of cables needed
   let totalCables = 0;
   let breakoutCables = 0;
   let standardCables = 0;
+  
+  // For single-tier (Rail-Only) topologies, calculate leaf-to-leaf connections
+  if (numTiers === 1 && numSpines === 0) {
+    // In a Rail-Only topology, leaves connect directly to each other
+    // Each leaf connects to 2-4 other leaves typically
+    const connectionsPerLeaf = Math.min(4, numLeafs - 1);
+    const totalConnections = (numLeafs * connectionsPerLeaf) / 2; // Divide by 2 to avoid double counting
+    
+    standardCables = totalConnections;
+    totalCables = totalConnections;
+    
+    return {
+      standard: standardCables,
+      breakout: 0,
+      total: totalCables
+    };
+  }
   
   // Check if we're using the new spine configuration model or the old linkTypes model
   if (config.spineConfig) {
