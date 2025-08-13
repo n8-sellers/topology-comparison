@@ -37,6 +37,7 @@ import {
   LeafConfig
 } from '../../types/topology';
 import { LeafDevice } from '../../types/devices';
+import { validateParallelLinks } from '../../services/CalculationService';
 
 // Interface for TabPanel props
 interface TabPanelProps {
@@ -364,8 +365,43 @@ const TopologyForm = () => {
     );
   };
 
+  // Calculate parallel links status for display
+  const getParallelLinksStatus = () => {
+    if (!topology.configuration.parallelLinksEnabled) {
+      return null;
+    }
+    
+    const { numSpines, leafConfig, parallelLinksMode, parallelLinksPerSpine } = topology.configuration;
+    
+    if (numSpines === 0) {
+      return "N/A (single-tier)";
+    }
+    
+    let linksPerSpine = 1;
+    if (parallelLinksMode === 'manual' && parallelLinksPerSpine) {
+      linksPerSpine = parallelLinksPerSpine;
+    } else {
+      // Auto mode calculation
+      const leafPortCount = leafConfig?.portCount || 48;
+      const estimatedDownlinkPorts = Math.floor(leafPortCount * 0.5);
+      const availableUplinkPorts = leafPortCount - estimatedDownlinkPorts;
+      linksPerSpine = Math.max(1, Math.floor(availableUplinkPorts / numSpines));
+    }
+    
+    const totalUplinksUsed = linksPerSpine * numSpines;
+    const leafPortCount = leafConfig?.portCount || 48;
+    
+    return `Using ${totalUplinksUsed}/${leafPortCount} uplink ports per leaf (${linksPerSpine} links per spine)`;
+  };
+
   // Render advanced configuration tab
   const renderAdvancedConfiguration = () => {
+    const parallelLinksValidation = validateParallelLinks(topology.configuration);
+    
+    console.log('Rendering Advanced Configuration Tab');
+    console.log('Parallel Links Enabled:', topology.configuration.parallelLinksEnabled);
+    console.log('Num Spines:', topology.configuration.numSpines);
+    
     return (
       <TabPanel value={tabValue} index={2}>
         <Grid container spacing={3}>
@@ -392,6 +428,66 @@ const TopologyForm = () => {
               label="Rail Optimized"
             />
           </Grid>
+          
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={topology.configuration.parallelLinksEnabled || false}
+                  onChange={(e) => handleConfigChange('parallelLinksEnabled', e.target.checked)}
+                  disabled={topology.configuration.numSpines === 0}
+                />
+              }
+              label="Enable Parallel Links"
+            />
+            {topology.configuration.numSpines === 0 && (
+              <Typography variant="caption" color="text.secondary" display="block">
+                Parallel links are not applicable for single-tier topologies
+              </Typography>
+            )}
+          </Grid>
+          
+          {topology.configuration.parallelLinksEnabled && topology.configuration.numSpines > 0 && (
+            <>
+              <Grid item xs={12} md={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={topology.configuration.parallelLinksMode === 'manual'}
+                      onChange={(e) => handleConfigChange('parallelLinksMode', e.target.checked ? 'manual' : 'auto')}
+                    />
+                  }
+                  label="Manual Mode"
+                />
+                <Typography variant="caption" color="text.secondary" display="block">
+                  {topology.configuration.parallelLinksMode === 'manual' 
+                    ? 'Manually specify number of parallel links' 
+                    : 'Automatically calculate optimal parallel links'}
+                </Typography>
+              </Grid>
+              
+              {topology.configuration.parallelLinksMode === 'manual' && (
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    label="Links per Spine"
+                    type="number"
+                    value={topology.configuration.parallelLinksPerSpine || 1}
+                    onChange={(e) => handleConfigChange('parallelLinksPerSpine', parseInt(e.target.value) || 1)}
+                    inputProps={{ min: 1, max: 32 }}
+                    size="small"
+                    error={!parallelLinksValidation.valid}
+                    helperText={parallelLinksValidation.error}
+                  />
+                </Grid>
+              )}
+              
+              <Grid item xs={12}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Status:</strong> {getParallelLinksStatus()}
+                </Typography>
+              </Grid>
+            </>
+          )}
         </Grid>
       </TabPanel>
     );
@@ -514,17 +610,46 @@ const TopologyForm = () => {
         
         {/* Basic Configuration Tab */}
         <TabPanel value={tabValue} index={0}>
-          {/* Rail-Only Mode Indicator */}
-          {topology.configuration.numTiers === 1 && topology.configuration.numSpines === 0 && (
+          {/* Topology Mode Indicators */}
+          {((topology.configuration.numTiers === 1 && topology.configuration.numSpines === 0) || topology.configuration.parallelLinksEnabled) && (
             <Box sx={{ mb: 3 }}>
-              <Chip 
-                label="Rail-Only Topology (Single-Tier)" 
-                color="info" 
-                icon={<InfoIcon />}
-                sx={{ mr: 1 }}
-              />
-              <Typography variant="caption" color="text.secondary">
-                In Rail-Only mode, leaf switches connect directly to each other without spine switches.
+              {topology.configuration.numTiers === 1 && topology.configuration.numSpines === 0 && (
+                <Chip 
+                  label="Rail-Only Topology (Single-Tier)" 
+                  color="info" 
+                  icon={<InfoIcon />}
+                  sx={{ mr: 1, mb: 1 }}
+                />
+              )}
+              
+              {topology.configuration.parallelLinksEnabled && topology.configuration.numSpines > 0 && (
+                <Chip 
+                  label={`Parallel Links (${(() => {
+                    const { numSpines, leafConfig, parallelLinksMode, parallelLinksPerSpine } = topology.configuration;
+                    let linksPerSpine = 1;
+                    if (parallelLinksMode === 'manual' && parallelLinksPerSpine) {
+                      linksPerSpine = parallelLinksPerSpine;
+                    } else {
+                      const leafPortCount = leafConfig?.portCount || 48;
+                      const estimatedDownlinkPorts = Math.floor(leafPortCount * 0.5);
+                      const availableUplinkPorts = leafPortCount - estimatedDownlinkPorts;
+                      linksPerSpine = Math.max(1, Math.floor(availableUplinkPorts / numSpines));
+                    }
+                    return `${linksPerSpine}x`;
+                  })()})`}
+                  color="secondary" 
+                  size="small"
+                  sx={{ mr: 1, mb: 1 }}
+                />
+              )}
+              
+              <Typography variant="caption" color="text.secondary" display="block">
+                {topology.configuration.numTiers === 1 && topology.configuration.numSpines === 0 && 
+                  "In Rail-Only mode, leaf switches connect directly to each other without spine switches."
+                }
+                {topology.configuration.parallelLinksEnabled && topology.configuration.numSpines > 0 && 
+                  " Multiple parallel links between each leaf-spine pair for higher bandwidth and redundancy."
+                }
               </Typography>
             </Box>
           )}

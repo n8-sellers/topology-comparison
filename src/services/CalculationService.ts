@@ -26,6 +26,79 @@ import {
 } from '../types/metrics';
 
 /**
+ * Helper function to calculate parallel links per spine
+ * @param config - The topology configuration
+ * @returns Number of parallel links per spine
+ */
+const getParallelLinksPerSpine = (config: TopologyConfiguration): number => {
+  // If parallel links feature is not enabled, return 1 (single link)
+  if (!config.parallelLinksEnabled) {
+    return 1;
+  }
+  
+  // If manual mode and value is specified, use it
+  if (config.parallelLinksMode === 'manual' && config.parallelLinksPerSpine) {
+    return config.parallelLinksPerSpine;
+  }
+  
+  // Auto mode: calculate optimal parallel links
+  return calculateAutoParallelLinks(config);
+};
+
+/**
+ * Calculate optimal parallel links in auto mode
+ * @param config - The topology configuration
+ * @returns Optimal number of parallel links per spine
+ */
+const calculateAutoParallelLinks = (config: TopologyConfiguration): number => {
+  const { numSpines, leafConfig } = config;
+  
+  // If no spines, return 1 (not applicable)
+  if (numSpines === 0) {
+    return 1;
+  }
+  
+  // Calculate available uplink ports on leaf switches
+  const leafPortCount = leafConfig?.portCount || 48;
+  
+  // Estimate downlink ports used (simplified calculation)
+  // In a real scenario, this would be more sophisticated
+  const estimatedDownlinkPorts = Math.floor(leafPortCount * 0.5); // Assume 50% for downlinks
+  const availableUplinkPorts = leafPortCount - estimatedDownlinkPorts;
+  
+  // Calculate maximum parallel links that fit
+  const maxParallelLinks = Math.floor(availableUplinkPorts / numSpines);
+  
+  // Ensure at least 1 link per spine
+  return Math.max(1, maxParallelLinks);
+};
+
+/**
+ * Validate parallel links configuration
+ * @param config - The topology configuration
+ * @returns Validation result with error message if invalid
+ */
+export const validateParallelLinks = (config: TopologyConfiguration): { valid: boolean; error?: string } => {
+  if (!config.parallelLinksEnabled) {
+    return { valid: true };
+  }
+  
+  const parallelLinks = getParallelLinksPerSpine(config);
+  const totalUplinksNeeded = parallelLinks * config.numSpines;
+  const leafPortCount = config.leafConfig?.portCount || 48;
+  
+  // Simple validation - in reality, this would account for downlink port usage
+  if (totalUplinksNeeded > leafPortCount) {
+    return {
+      valid: false,
+      error: `Parallel links require ${totalUplinksNeeded} uplink ports per leaf, but only ${leafPortCount} ports available`
+    };
+  }
+  
+  return { valid: true };
+};
+
+/**
  * Calculate all metrics for a given topology configuration
  * @param topology - The topology object with configuration
  * @returns Object containing all calculated metrics
@@ -128,8 +201,11 @@ export const calculateCost = (config: TopologyConfiguration): CostBreakdown => {
           const linkSpeedMatch = breakoutMode.match(/\d+x(\d+G)/);
           const linkSpeed = linkSpeedMatch ? linkSpeedMatch[1] : portSpeed;
           
-          // In a Clos network, every spine connects to every leaf with exactly one link
-          const totalLinks = numSpines * numLeafs;
+          // Get parallel links factor
+          const parallelLinksPerSpine = getParallelLinksPerSpine(config);
+          
+          // In a Clos network, every spine connects to every leaf with parallel links
+          const totalLinks = numSpines * numLeafs * parallelLinksPerSpine;
           
           // Each link requires 2 optics (one on each end)
           const opticsNeeded = totalLinks * 2;
@@ -230,8 +306,11 @@ export const calculatePowerUsage = (config: TopologyConfiguration): PowerBreakdo
           const linkSpeedMatch = breakoutMode.match(/\d+x(\d+G)/);
           const linkSpeed = linkSpeedMatch ? linkSpeedMatch[1] : portSpeed;
           
-          // In a Clos network, every spine connects to every leaf with exactly one link
-          const totalLinks = numSpines * numLeafs;
+          // Get parallel links factor
+          const parallelLinksPerSpine = getParallelLinksPerSpine(config);
+          
+          // In a Clos network, every spine connects to every leaf with parallel links
+          const totalLinks = numSpines * numLeafs * parallelLinksPerSpine;
           
           // Each link requires 2 optics (one on each end)
           const opticsNeeded = totalLinks * 2;
@@ -618,8 +697,11 @@ export const calculateCabling = (config: TopologyConfiguration): CablingMetrics 
     // New model with spineConfig
     const { portSpeed, breakoutMode } = config.spineConfig;
     
-    // In a Clos network, every spine connects to every leaf with exactly one link
-    const totalLogicalLinks = numSpines * numLeafs;
+    // Get parallel links factor
+    const parallelLinksPerSpine = getParallelLinksPerSpine(config);
+    
+    // In a Clos network, every spine connects to every leaf with parallel links
+    const totalLogicalLinks = numSpines * numLeafs * parallelLinksPerSpine;
     
     // Make sure breakoutOptions exists and has the right structure
     if (config.breakoutOptions && typeof config.breakoutOptions === 'object' && !Array.isArray(config.breakoutOptions)) {
@@ -734,7 +816,8 @@ const calculationService = {
   calculateOversubscription,
   calculateRackSpace,
   calculateCabling,
-  compareTopologies
+  compareTopologies,
+  validateParallelLinks
 };
 
 export default calculationService;

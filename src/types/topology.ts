@@ -33,6 +33,10 @@ export interface TopologyConfiguration {
   breakoutOptions: BreakoutOptions | BreakoutOptionLegacy[];
   disjointedSpines: boolean;
   railOptimized: boolean;
+  // Parallel Links feature
+  parallelLinksEnabled?: boolean;     // Feature toggle (default: false)
+  parallelLinksPerSpine?: number;     // Manual override (optional)
+  parallelLinksMode?: 'auto' | 'manual'; // Default: 'auto'
   switchCost: SwitchCost;
   opticsCost: OpticsCost;      // Keep as an object
   opticsPower?: number;        // Optional property for simplified optics power (per unit)
