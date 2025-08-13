@@ -29,6 +29,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import InfoIcon from '@mui/icons-material/Info';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { 
   Topology, 
   TopologyConfiguration, 
@@ -213,10 +214,13 @@ const TopologyForm = () => {
   const validateTopology = (topologyToValidate: Topology): boolean => {
     const errors: ValidationErrors = {};
     
+    // Create a copy to avoid mutation
+    const topologyConfig = { ...topologyToValidate.configuration };
+    
     // Ensure spineConfig exists
-    if (!topologyToValidate.configuration.spineConfig) {
+    if (!topologyConfig.spineConfig) {
       // Initialize spineConfig with default values if it doesn't exist
-      topologyToValidate.configuration.spineConfig = {
+      topologyConfig.spineConfig = {
         portCount: 64,
         portSpeed: '800G',
         breakoutMode: '1x800G'
@@ -224,17 +228,17 @@ const TopologyForm = () => {
     }
     
     // Check if leaf count exceeds maximum
-    const { portCount, portSpeed, breakoutMode } = topologyToValidate.configuration.spineConfig;
+    const { portCount, portSpeed, breakoutMode } = topologyConfig.spineConfig;
     
     // Ensure breakoutOptions exists and has the right structure
-    if (!topologyToValidate.configuration.breakoutOptions || 
-        !('portSpeed' in topologyToValidate.configuration.breakoutOptions)) {
+    if (!topologyConfig.breakoutOptions || 
+        !('portSpeed' in topologyConfig.breakoutOptions)) {
       errors.spineConfig = 'Invalid breakout options configuration';
       setValidationErrors(errors);
       return Object.keys(errors).length === 0;
     }
     
-    const breakoutOptions = topologyToValidate.configuration.breakoutOptions as Record<string, BreakoutOption[]>;
+    const breakoutOptions = topologyConfig.breakoutOptions as Record<string, BreakoutOption[]>;
     
     if (!breakoutOptions[portSpeed]) {
       errors.spineConfig = `No breakout options available for ${portSpeed}`;
@@ -248,22 +252,22 @@ const TopologyForm = () => {
     const breakoutFactor = breakoutOption ? breakoutOption.factor : 1;
     const maxLeafSwitches = portCount * breakoutFactor;
     
-    if (topologyToValidate.configuration.numLeafs > maxLeafSwitches) {
+    if (topologyConfig.numLeafs > maxLeafSwitches) {
       errors.numLeafs = `Leaf count exceeds maximum of ${maxLeafSwitches} supported by current spine configuration`;
     }
     
     // Check if spine count is valid - only for multi-tier topologies
-    if (topologyToValidate.configuration.numTiers > 1 && topologyToValidate.configuration.numSpines < 1) {
+    if (topologyConfig.numTiers > 1 && topologyConfig.numSpines < 1) {
       errors.numSpines = 'Spine count must be at least 1 for multi-tier topologies';
     }
     
     // Check if leaf count is valid
-    if (topologyToValidate.configuration.numLeafs < 2) {
+    if (topologyConfig.numLeafs < 2) {
       errors.numLeafs = 'Leaf count must be at least 2';
     }
     
     // Check if tier count is valid
-    if (topologyToValidate.configuration.numTiers < 1 || topologyToValidate.configuration.numTiers > 3) {
+    if (topologyConfig.numTiers < 1 || topologyConfig.numTiers > 3) {
       errors.numTiers = 'Tier count must be between 1 and 3';
     }
     
@@ -397,10 +401,6 @@ const TopologyForm = () => {
   // Render advanced configuration tab
   const renderAdvancedConfiguration = () => {
     const parallelLinksValidation = validateParallelLinks(topology.configuration);
-    
-    console.log('Rendering Advanced Configuration Tab');
-    console.log('Parallel Links Enabled:', topology.configuration.parallelLinksEnabled);
-    console.log('Num Spines:', topology.configuration.numSpines);
     
     return (
       <TabPanel value={tabValue} index={2}>
@@ -571,9 +571,7 @@ const TopologyForm = () => {
             
             <Tooltip title="Export Topology">
               <IconButton onClick={() => exportTopology(topology)} color="primary">
-                <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24">
-                  <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
-                </svg>
+                <FileDownloadIcon />
               </IconButton>
             </Tooltip>
             

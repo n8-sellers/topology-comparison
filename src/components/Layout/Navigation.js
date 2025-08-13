@@ -69,11 +69,15 @@ const Navigation = () => {
       <List>
         {navItems.map((item) => (
           <ListItem 
-            button 
             key={item.text} 
             component={Link} 
             to={item.path}
             selected={isActive(item.path)}
+            sx={{ 
+              '&:hover': { 
+                backgroundColor: 'action.hover' 
+              } 
+            }}
           >
             <ListItemIcon>
               {item.icon}

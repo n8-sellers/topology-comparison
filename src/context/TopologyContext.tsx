@@ -153,7 +153,12 @@ export const TopologyProvider = ({ children }: ProviderProps) => {
     const initialize = async () => {
       try {
         // Initialize storage service (handles data migration)
-        await StorageService.initializeStorage();
+        const initialized = await StorageService.initializeStorage();
+        
+        // Only log in development mode
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Storage service initialized:', initialized);
+        }
         
         // Load all topologies
         const savedTopologies = await StorageService.getAllTopologies();
