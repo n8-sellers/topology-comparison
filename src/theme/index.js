@@ -95,26 +95,30 @@ const darkPalette = {
 // Common theme settings
 const commonSettings = {
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
     h1: {
       fontSize: '2.5rem',
-      fontWeight: 500,
+      fontWeight: 700,
       lineHeight: 1.2,
+      letterSpacing: '-0.02em',
     },
     h2: {
       fontSize: '2rem',
-      fontWeight: 500,
+      fontWeight: 600,
       lineHeight: 1.3,
+      letterSpacing: '-0.01em',
     },
     h3: {
       fontSize: '1.75rem',
-      fontWeight: 500,
+      fontWeight: 600,
       lineHeight: 1.4,
+      letterSpacing: '-0.01em',
     },
     h4: {
       fontSize: '1.5rem',
-      fontWeight: 500,
+      fontWeight: 600,
       lineHeight: 1.4,
+      letterSpacing: '-0.005em',
     },
     h5: {
       fontSize: '1.25rem',
@@ -159,9 +163,15 @@ const commonSettings = {
     },
     overline: {
       fontSize: '0.75rem',
-      fontWeight: 400,
+      fontWeight: 500,
       lineHeight: 2.66,
       textTransform: 'uppercase',
+      letterSpacing: '0.08em',
+    },
+    // Custom variant for monospace numbers
+    mono: {
+      fontFamily: '"JetBrains Mono", "Courier New", monospace',
+      fontWeight: 500,
     },
   },
   shape: {

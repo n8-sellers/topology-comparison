@@ -13,6 +13,7 @@ import Home from './pages/Home';
 import Builder from './pages/Builder';
 import Visualization from './pages/Visualization';
 import Comparison from './pages/Comparison';
+import UIPreview from './pages/UIPreview';
 
 function App() {
   // Initialize the storage service when the app starts
@@ -37,6 +38,7 @@ function App() {
               <Route path="/builder" element={<Builder />} />
               <Route path="/visualization" element={<Visualization />} />
               <Route path="/comparison" element={<Comparison />} />
+              <Route path="/ui-preview" element={<UIPreview />} />
             </Routes>
           </Layout>
         </Router>

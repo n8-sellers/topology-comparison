@@ -136,7 +136,13 @@ const TopologyCard = ({
               <Box>
                 <Typography variant="caption" color="text.secondary">Devices</Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2" mr={0.5}>{metrics.deviceCount.total}</Typography>
+                  <Typography 
+                    variant="body2" 
+                    mr={0.5}
+                    sx={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 500 }}
+                  >
+                    {metrics.deviceCount.total}
+                  </Typography>
                   {deviceStatus.icon}
                 </Box>
               </Box>
@@ -149,7 +155,13 @@ const TopologyCard = ({
               <Box>
                 <Typography variant="caption" color="text.secondary">Cost</Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2" mr={0.5}>{formatCurrency(metrics.cost.total)}</Typography>
+                  <Typography 
+                    variant="body2" 
+                    mr={0.5}
+                    sx={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 500 }}
+                  >
+                    {formatCurrency(metrics.cost.total)}
+                  </Typography>
                   {costStatus.icon}
                 </Box>
               </Box>
@@ -162,7 +174,13 @@ const TopologyCard = ({
               <Box>
                 <Typography variant="caption" color="text.secondary">Power</Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2" mr={0.5}>{formatPower(metrics.power.total)}</Typography>
+                  <Typography 
+                    variant="body2" 
+                    mr={0.5}
+                    sx={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 500 }}
+                  >
+                    {formatPower(metrics.power.total)}
+                  </Typography>
                   {powerStatus.icon}
                 </Box>
               </Box>
