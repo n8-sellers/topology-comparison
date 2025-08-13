@@ -122,8 +122,8 @@ const DeviceSpecificationVisualizer = ({
                             minWidth: 80
                           }}
                         >
-                          <Typography variant="h6" color="primary">{config.count}</Typography>
-                          <Typography variant="caption">{config.speed}</Typography>
+                          <Typography variant="h6" color="primary" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{config.count}</Typography>
+                          <Typography variant="caption" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{config.speed}</Typography>
                         </Box>
                       </Tooltip>
                     ))}
@@ -136,7 +136,7 @@ const DeviceSpecificationVisualizer = ({
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="subtitle2">Port Density</Typography>
-                    <Typography variant="body2">{portDensity.toFixed(1)} ports/RU</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{portDensity.toFixed(1)} ports/RU</Typography>
                   </Box>
                   <Tooltip title="Higher port density is better">
                     <Box sx={{ mt: 1 }}>
@@ -192,7 +192,7 @@ const DeviceSpecificationVisualizer = ({
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="subtitle2">Cost</Typography>
-                    <Typography variant="body2">{formatCurrency(device.cost)}</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{formatCurrency(device.cost)}</Typography>
                   </Box>
                   <Tooltip title="Lower cost is better">
                     <Box sx={{ mt: 1 }}>
@@ -212,7 +212,7 @@ const DeviceSpecificationVisualizer = ({
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="subtitle2">Power Consumption</Typography>
-                    <Typography variant="body2">{device.powerConsumption.typical}W typical</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{device.powerConsumption.typical}W typical</Typography>
                   </Box>
                   <Tooltip title="Lower power consumption is better">
                     <Box sx={{ mt: 1 }}>
@@ -224,7 +224,7 @@ const DeviceSpecificationVisualizer = ({
                       />
                     </Box>
                   </Tooltip>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                     Max: {device.powerConsumption.max}W
                   </Typography>
                 </Paper>
@@ -260,7 +260,7 @@ const DeviceSpecificationVisualizer = ({
                       />
                     ))}
                   </Box>
-                  <Typography variant="body2" align="center">{device.rackUnits}U</Typography>
+                  <Typography variant="body2" align="center" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{device.rackUnits}U</Typography>
                 </Paper>
               </Grid>
               
@@ -268,7 +268,7 @@ const DeviceSpecificationVisualizer = ({
               <Grid item xs={12} md={4}>
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Typography variant="subtitle2" gutterBottom>Weight</Typography>
-                  <Typography variant="h6" align="center">{device.weight} kg</Typography>
+                  <Typography variant="h6" align="center" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{device.weight} kg</Typography>
                 </Paper>
               </Grid>
               
@@ -276,7 +276,7 @@ const DeviceSpecificationVisualizer = ({
               <Grid item xs={12} md={4}>
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Typography variant="subtitle2" gutterBottom>Thermal Output</Typography>
-                  <Typography variant="h6" align="center">{device.thermalOutput} BTU/hr</Typography>
+                  <Typography variant="h6" align="center" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>{device.thermalOutput} BTU/hr</Typography>
                 </Paper>
               </Grid>
               
@@ -284,7 +284,7 @@ const DeviceSpecificationVisualizer = ({
               <Grid item xs={12}>
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Typography variant="subtitle2" gutterBottom>Dimensions (H×W×D)</Typography>
-                  <Typography variant="body1" align="center">
+                  <Typography variant="body1" align="center" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                     {device.dimensions.height} × {device.dimensions.width} × {device.dimensions.depth} cm
                   </Typography>
                 </Paper>

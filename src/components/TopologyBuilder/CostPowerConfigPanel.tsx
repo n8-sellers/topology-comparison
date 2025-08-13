@@ -264,6 +264,7 @@ const CostPowerConfigPanel = ({
                       value={topology.configuration.switchCost.spine}
                       onChange={(e) => handleSpineCostChange(Number(e.target.value))}
                       size="small"
+                      sx={{ '& input': { fontFamily: '"JetBrains Mono", monospace' } }}
                     />
                   </FormControl>
                   {selectedSpineDevice && (
@@ -307,6 +308,7 @@ const CostPowerConfigPanel = ({
                       value={topology.configuration.powerUsage.spine}
                       onChange={(e) => handleSpinePowerChange(Number(e.target.value))}
                       size="small"
+                      sx={{ '& input': { fontFamily: '"JetBrains Mono", monospace' } }}
                     />
                   </FormControl>
                   {selectedSpineDevice && (
@@ -350,6 +352,7 @@ const CostPowerConfigPanel = ({
                       value={topology.configuration.switchCost.leaf}
                       onChange={(e) => handleLeafCostChange(Number(e.target.value))}
                       size="small"
+                      sx={{ '& input': { fontFamily: '"JetBrains Mono", monospace' } }}
                     />
                   </FormControl>
                   {selectedLeafDevice && (
@@ -393,6 +396,7 @@ const CostPowerConfigPanel = ({
                       value={topology.configuration.powerUsage.leaf}
                       onChange={(e) => handleLeafPowerChange(Number(e.target.value))}
                       size="small"
+                      sx={{ '& input': { fontFamily: '"JetBrains Mono", monospace' } }}
                     />
                   </FormControl>
                   {selectedLeafDevice && (

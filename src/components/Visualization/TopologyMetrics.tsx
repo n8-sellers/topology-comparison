@@ -609,7 +609,7 @@ const TopologyMetrics = () => {
                         <Typography variant="subtitle2" color="textSecondary">
                           Total Devices
                         </Typography>
-                        <Typography variant="h4">
+                        <Typography variant="h4" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                           {formatNumber(metrics.deviceCount.total)}
                         </Typography>
                         <Typography variant="body2">
@@ -649,7 +649,7 @@ const TopologyMetrics = () => {
                         <Typography variant="subtitle2" color="textSecondary">
                           Total Cost
                         </Typography>
-                        <Typography variant="h4">
+                        <Typography variant="h4" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                           {formatCurrency(metrics.cost.total)}
                         </Typography>
                         <Typography variant="body2">
@@ -692,7 +692,7 @@ const TopologyMetrics = () => {
                         <Typography variant="subtitle2" color="textSecondary">
                           Power Usage
                         </Typography>
-                        <Typography variant="h4">
+                        <Typography variant="h4" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                           {formatPower(metrics.power.total)}
                         </Typography>
                         <Typography variant="body2">
@@ -896,7 +896,7 @@ const TopologyMetrics = () => {
                     <Typography variant="subtitle2" color="textSecondary">
                       Latency
                     </Typography>
-                    <Typography variant="h5">
+                    <Typography variant="h5" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                       {metrics.latency.total.toFixed(2)} μs
                     </Typography>
                     <Typography variant="body2">
@@ -915,7 +915,7 @@ const TopologyMetrics = () => {
                     <Typography variant="subtitle2" color="textSecondary">
                       Rack Space
                     </Typography>
-                    <Typography variant="h5">
+                    <Typography variant="h5" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                       {metrics.rackSpace.totalRackUnits} U
                     </Typography>
                     <Typography variant="body2">
@@ -934,7 +934,7 @@ const TopologyMetrics = () => {
                     <Typography variant="subtitle2" color="textSecondary">
                       Cabling
                     </Typography>
-                    <Typography variant="h5">
+                    <Typography variant="h5" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                       {metrics.cabling.total} cables
                     </Typography>
                     <Typography variant="body2">
