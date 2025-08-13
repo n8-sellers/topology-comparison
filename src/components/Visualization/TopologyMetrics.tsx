@@ -175,67 +175,58 @@ const TopologyMetrics = () => {
     }
   };
 
-  // Device count chart data
+  // Check if this is a Rail-Only (single-tier) topology
+  const isRailOnly = currentTopology.configuration.numTiers === 1 && currentTopology.configuration.numSpines === 0;
+
+  // Device count chart data - conditionally include spine data
   const deviceCountData: BarChartData = {
-    labels: ['Spine Switches', 'Leaf Switches'],
+    labels: isRailOnly ? ['Leaf Switches'] : ['Spine Switches', 'Leaf Switches'],
     datasets: [
       {
         label: 'Number of Devices',
-        data: [metrics.deviceCount.spines, metrics.deviceCount.leafs],
-        backgroundColor: ['rgba(54, 162, 235, 0.6)', 'rgba(75, 192, 192, 0.6)'],
-        borderColor: ['rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)'],
+        data: isRailOnly ? [metrics.deviceCount.leafs] : [metrics.deviceCount.spines, metrics.deviceCount.leafs],
+        backgroundColor: isRailOnly ? ['rgba(75, 192, 192, 0.6)'] : ['rgba(54, 162, 235, 0.6)', 'rgba(75, 192, 192, 0.6)'],
+        borderColor: isRailOnly ? ['rgba(75, 192, 192, 1)'] : ['rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)'],
         borderWidth: 1
       }
     ]
   };
 
-  // Cost breakdown chart data
+  // Cost breakdown chart data - conditionally include spine data
   const costData: DoughnutChartData = {
-    labels: ['Spine Switches', 'Leaf Switches', 'Optics'],
+    labels: isRailOnly ? ['Leaf Switches', 'Optics'] : ['Spine Switches', 'Leaf Switches', 'Optics'],
     datasets: [
       {
         label: 'Cost Breakdown',
-        data: [
-          metrics.cost.switches.spine,
-          metrics.cost.switches.leaf,
-          metrics.cost.optics
-        ],
-        backgroundColor: [
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(255, 159, 64, 0.6)'
-        ],
-        borderColor: [
-          'rgba(54, 162, 235, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(255, 159, 64, 1)'
-        ],
+        data: isRailOnly 
+          ? [metrics.cost.switches.leaf, metrics.cost.optics]
+          : [metrics.cost.switches.spine, metrics.cost.switches.leaf, metrics.cost.optics],
+        backgroundColor: isRailOnly
+          ? ['rgba(75, 192, 192, 0.6)', 'rgba(255, 159, 64, 0.6)']
+          : ['rgba(54, 162, 235, 0.6)', 'rgba(75, 192, 192, 0.6)', 'rgba(255, 159, 64, 0.6)'],
+        borderColor: isRailOnly
+          ? ['rgba(75, 192, 192, 1)', 'rgba(255, 159, 64, 1)']
+          : ['rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)', 'rgba(255, 159, 64, 1)'],
         borderWidth: 1
       }
     ]
   };
 
-  // Power usage chart data
+  // Power usage chart data - conditionally include spine data
   const powerData: DoughnutChartData = {
-    labels: ['Spine Switches', 'Leaf Switches', 'Optics'],
+    labels: isRailOnly ? ['Leaf Switches', 'Optics'] : ['Spine Switches', 'Leaf Switches', 'Optics'],
     datasets: [
       {
         label: 'Power Usage (Watts)',
-        data: [
-          metrics.power.switches.spine,
-          metrics.power.switches.leaf,
-          metrics.power.optics
-        ],
-        backgroundColor: [
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(255, 159, 64, 0.6)'
-        ],
-        borderColor: [
-          'rgba(54, 162, 235, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(255, 159, 64, 1)'
-        ],
+        data: isRailOnly
+          ? [metrics.power.switches.leaf, metrics.power.optics]
+          : [metrics.power.switches.spine, metrics.power.switches.leaf, metrics.power.optics],
+        backgroundColor: isRailOnly
+          ? ['rgba(75, 192, 192, 0.6)', 'rgba(255, 159, 64, 0.6)']
+          : ['rgba(54, 162, 235, 0.6)', 'rgba(75, 192, 192, 0.6)', 'rgba(255, 159, 64, 0.6)'],
+        borderColor: isRailOnly
+          ? ['rgba(75, 192, 192, 1)', 'rgba(255, 159, 64, 1)']
+          : ['rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)', 'rgba(255, 159, 64, 1)'],
         borderWidth: 1
       }
     ]
@@ -586,9 +577,13 @@ const TopologyMetrics = () => {
                       title={
                         <React.Fragment>
                           <Typography color="inherit" variant="subtitle2">Device Breakdown</Typography>
-                          <Typography variant="body2">Spine Switches: {metrics.deviceCount.spines}</Typography>
+                          {!isRailOnly && (
+                            <Typography variant="body2">Spine Switches: {metrics.deviceCount.spines}</Typography>
+                          )}
                           <Typography variant="body2">Leaf Switches: {metrics.deviceCount.leafs}</Typography>
-                          <Typography variant="body2">Device Ratio: {(metrics.deviceCount.leafs / metrics.deviceCount.spines).toFixed(2)} leaf per spine</Typography>
+                          {!isRailOnly && (
+                            <Typography variant="body2">Device Ratio: {(metrics.deviceCount.leafs / metrics.deviceCount.spines).toFixed(2)} leaf per spine</Typography>
+                          )}
                         </React.Fragment>
                       } 
                       arrow 
@@ -613,7 +608,10 @@ const TopologyMetrics = () => {
                           {formatNumber(metrics.deviceCount.total)}
                         </Typography>
                         <Typography variant="body2">
-                          {metrics.deviceCount.spines} spine, {metrics.deviceCount.leafs} leaf
+                          {isRailOnly 
+                            ? `${metrics.deviceCount.leafs} leaf switches`
+                            : `${metrics.deviceCount.spines} spine, ${metrics.deviceCount.leafs} leaf`
+                          }
                         </Typography>
                       </Paper>
                     </Tooltip>
@@ -625,7 +623,9 @@ const TopologyMetrics = () => {
                       title={
                         <React.Fragment>
                           <Typography color="inherit" variant="subtitle2">Cost Breakdown</Typography>
-                          <Typography variant="body2">Spine Switches: {formatCurrency(metrics.cost.switches.spine)}</Typography>
+                          {!isRailOnly && (
+                            <Typography variant="body2">Spine Switches: {formatCurrency(metrics.cost.switches.spine)}</Typography>
+                          )}
                           <Typography variant="body2">Leaf Switches: {formatCurrency(metrics.cost.switches.leaf)}</Typography>
                           <Typography variant="body2">Optics: {formatCurrency(metrics.cost.optics)}</Typography>
                           <Typography variant="body2">Per Port Cost: {formatCurrency(metrics.cost.total / (metrics.deviceCount.total || 1))}</Typography>
@@ -668,7 +668,9 @@ const TopologyMetrics = () => {
                       title={
                         <React.Fragment>
                           <Typography color="inherit" variant="subtitle2">Power Breakdown</Typography>
-                          <Typography variant="body2">Spine Switches: {formatPower(metrics.power.switches.spine)}</Typography>
+                          {!isRailOnly && (
+                            <Typography variant="body2">Spine Switches: {formatPower(metrics.power.switches.spine)}</Typography>
+                          )}
                           <Typography variant="body2">Leaf Switches: {formatPower(metrics.power.switches.leaf)}</Typography>
                           <Typography variant="body2">Optics: {formatPower(metrics.power.optics)}</Typography>
                           <Typography variant="body2">Annual Energy Cost: {formatCurrency(metrics.power.total * 24 * 365 * 0.12 / 1000)}</Typography>
@@ -708,7 +710,8 @@ const TopologyMetrics = () => {
                 <Grid item xs={12} sm={6} md={3}>
                   {/* Oversubscription ratio card removed */}
                 </Grid>
-                {currentTopology.configuration.deviceSelection?.spine?.deviceId ? (
+                {/* Only show spine configuration for non-Rail-Only topologies */}
+                {!isRailOnly && currentTopology.configuration.deviceSelection?.spine?.deviceId ? (
                   <Grid item xs={12} sm={6} md={4}>
                     <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="textSecondary">
@@ -749,7 +752,7 @@ const TopologyMetrics = () => {
                       </Typography>
                     </Paper>
                   </Grid>
-                ) : currentTopology.configuration.spineConfig ? (
+                ) : !isRailOnly && currentTopology.configuration.spineConfig ? (
                   <Grid item xs={12} sm={6} md={4}>
                     <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="textSecondary">
@@ -918,9 +921,11 @@ const TopologyMetrics = () => {
                     <Typography variant="h5" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
                       {metrics.rackSpace.totalRackUnits} U
                     </Typography>
-                    <Typography variant="body2">
-                      Spine: {metrics.rackSpace.spineRackUnits} U
-                    </Typography>
+                    {!isRailOnly && (
+                      <Typography variant="body2">
+                        Spine: {metrics.rackSpace.spineRackUnits} U
+                      </Typography>
+                    )}
                     <Typography variant="body2">
                       Leaf: {metrics.rackSpace.leafRackUnits} U
                     </Typography>
