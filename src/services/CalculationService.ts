@@ -146,9 +146,11 @@ export const calculateDeviceCount = (config: TopologyConfiguration): DeviceCount
 export const calculateCost = (config: TopologyConfiguration): CostBreakdown => {
   const { numSpines, numLeafs, switchCost, opticsCost, numTiers } = config;
   
-  // Calculate switch costs
-  const spineCost = numSpines * switchCost.spine;
-  const leafCost = numLeafs * switchCost.leaf;
+  // Calculate switch costs using per-device overrides when present
+  const unitSpineCost = config.deviceSelection?.spine?.costOverride ?? switchCost.spine;
+  const unitLeafCost = config.deviceSelection?.leaf?.costOverride ?? switchCost.leaf;
+  const spineCost = numSpines * unitSpineCost;
+  const leafCost = numLeafs * unitLeafCost;
   const totalSwitchCost = spineCost + leafCost;
   
   // Calculate optics costs
@@ -253,9 +255,11 @@ export const calculateCost = (config: TopologyConfiguration): CostBreakdown => {
 export const calculatePowerUsage = (config: TopologyConfiguration): PowerBreakdown => {
   const { numSpines, numLeafs, powerUsage, numTiers } = config;
   
-  // Calculate switch power usage
-  const spinePower = numSpines * powerUsage.spine;
-  const leafPower = numLeafs * powerUsage.leaf;
+  // Calculate switch power usage using per-device overrides when present
+  const unitSpinePower = config.deviceSelection?.spine?.powerOverride ?? powerUsage.spine;
+  const unitLeafPower = config.deviceSelection?.leaf?.powerOverride ?? powerUsage.leaf;
+  const spinePower = numSpines * unitSpinePower;
+  const leafPower = numLeafs * unitLeafPower;
   const totalSwitchPower = spinePower + leafPower;
   
   // Calculate optics power usage

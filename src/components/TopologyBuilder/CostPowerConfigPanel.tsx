@@ -6,7 +6,6 @@ import {
   Grid,
   Typography,
   Slider,
-  TextField,
   FormControl,
   InputLabel,
   OutlinedInput,
@@ -28,15 +27,6 @@ interface CostPowerConfigPanelProps {
   opticConfig?: boolean;
 }
 
-// Define structure for override settings
-interface OverrideSettings {
-  spineCost: boolean;
-  spinePower: boolean;
-  leafCost: boolean;
-  leafPower: boolean;
-  opticsCost: boolean;
-  opticsPower: boolean;
-}
 
 /**
  * Shared component for cost and power settings
@@ -50,16 +40,6 @@ const CostPowerConfigPanel = ({
   panelType = 'compact',
   opticConfig = true
 }: CostPowerConfigPanelProps) => {
-  // State for tracking which values are overridden from device defaults
-  const [overrides, setOverrides] = React.useState<OverrideSettings>({
-    spineCost: true,
-    spinePower: true,
-    leafCost: true,
-    leafPower: true,
-    opticsCost: true, // Default to overridden since there's no direct device default
-    opticsPower: true  // Default to overridden since there's no direct device default
-  });
-  
   // Check if a value is using device default
   const isUsingDeviceDefault = (type: 'spine' | 'leaf', property: 'cost' | 'power'): boolean => {
     if (type === 'spine' && selectedSpineDevice) {
@@ -78,17 +58,22 @@ const CostPowerConfigPanel = ({
     return false;
   };
 
-  // Update overrides when devices change
-  React.useEffect(() => {
-    setOverrides({
-      spineCost: !isUsingDeviceDefault('spine', 'cost'),
-      spinePower: !isUsingDeviceDefault('spine', 'power'),
-      leafCost: !isUsingDeviceDefault('leaf', 'cost'),
-      leafPower: !isUsingDeviceDefault('leaf', 'power'),
-      opticsCost: true,
-      opticsPower: true
-    });
-  }, [selectedSpineDevice, selectedLeafDevice]);
+  // Override source helpers
+  const getPricingSource = (type: 'spine' | 'leaf'): 'global' | 'device-default' | 'manual' => {
+    return topology.configuration.deviceSelection?.[type]?.pricingSource || 'global';
+  };
+  const isOverridden = (type: 'spine' | 'leaf'): boolean => getPricingSource(type) !== 'global';
+  const clearOverride = (type: 'spine' | 'leaf') => {
+    const updated = { ...topology } as any;
+    const sel = updated.configuration.deviceSelection || {};
+    const role = { ...(sel[type] || {}) };
+    delete (role as any).costOverride;
+    delete (role as any).powerOverride;
+    (role as any).pricingSource = 'global';
+    updated.configuration.deviceSelection = { ...sel, [type]: role };
+    setTopology(updated);
+  };
+
   // Format currency
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-US', {
@@ -232,7 +217,10 @@ const CostPowerConfigPanel = ({
       <Card variant="outlined">
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Cost & Power Settings
+            Global Cost & Power Defaults
+          </Typography>
+          <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+            These values apply unless a selected device sets a pricing override in Device Selection.
           </Typography>
 
           <Grid container spacing={2}>
@@ -242,14 +230,26 @@ const CostPowerConfigPanel = ({
                   <Grid item>
                     <Typography variant="subtitle1">Spine Switch Cost</Typography>
                   </Grid>
-                  <Grid item>
+                  <Grid item sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                     {isUsingDeviceDefault('spine', 'cost') && selectedSpineDevice && (
-                      <Chip 
-                        size="small" 
-                        label="Device Default" 
-                        color="primary" 
-                        variant="outlined" 
-                      />
+                      <Chip size="small" label="Device Default" color="primary" variant="outlined" />
+                    )}
+                    {isOverridden('spine') && (
+                      <>
+                        <Chip
+                          size="small"
+                          label={`Overridden (${getPricingSource('spine') === 'manual' ? 'Manual' : 'Device Default'})`}
+                          color="secondary"
+                          variant="outlined"
+                        />
+                        <Typography
+                          variant="caption"
+                          sx={{ ml: 0.5, cursor: 'pointer', textDecoration: 'underline' }}
+                          onClick={() => clearOverride('spine')}
+                        >
+                          Clear override
+                        </Typography>
+                      </>
                     )}
                   </Grid>
                 </Grid>
@@ -286,14 +286,26 @@ const CostPowerConfigPanel = ({
                   <Grid item>
                     <Typography variant="subtitle1">Spine Switch Power</Typography>
                   </Grid>
-                  <Grid item>
+                  <Grid item sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                     {isUsingDeviceDefault('spine', 'power') && selectedSpineDevice && (
-                      <Chip 
-                        size="small" 
-                        label="Device Default" 
-                        color="primary" 
-                        variant="outlined" 
-                      />
+                      <Chip size="small" label="Device Default" color="primary" variant="outlined" />
+                    )}
+                    {isOverridden('spine') && (
+                      <>
+                        <Chip
+                          size="small"
+                          label={`Overridden (${getPricingSource('spine') === 'manual' ? 'Manual' : 'Device Default'})`}
+                          color="secondary"
+                          variant="outlined"
+                        />
+                        <Typography
+                          variant="caption"
+                          sx={{ ml: 0.5, cursor: 'pointer', textDecoration: 'underline' }}
+                          onClick={() => clearOverride('spine')}
+                        >
+                          Clear override
+                        </Typography>
+                      </>
                     )}
                   </Grid>
                 </Grid>
@@ -330,14 +342,26 @@ const CostPowerConfigPanel = ({
                   <Grid item>
                     <Typography variant="subtitle1">Leaf Switch Cost</Typography>
                   </Grid>
-                  <Grid item>
+                  <Grid item sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                     {isUsingDeviceDefault('leaf', 'cost') && selectedLeafDevice && (
-                      <Chip 
-                        size="small" 
-                        label="Device Default" 
-                        color="primary" 
-                        variant="outlined" 
-                      />
+                      <Chip size="small" label="Device Default" color="primary" variant="outlined" />
+                    )}
+                    {isOverridden('leaf') && (
+                      <>
+                        <Chip
+                          size="small"
+                          label={`Overridden (${getPricingSource('leaf') === 'manual' ? 'Manual' : 'Device Default'})`}
+                          color="secondary"
+                          variant="outlined"
+                        />
+                        <Typography
+                          variant="caption"
+                          sx={{ ml: 0.5, cursor: 'pointer', textDecoration: 'underline' }}
+                          onClick={() => clearOverride('leaf')}
+                        >
+                          Clear override
+                        </Typography>
+                      </>
                     )}
                   </Grid>
                 </Grid>
@@ -374,14 +398,26 @@ const CostPowerConfigPanel = ({
                   <Grid item>
                     <Typography variant="subtitle1">Leaf Switch Power</Typography>
                   </Grid>
-                  <Grid item>
+                  <Grid item sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                     {isUsingDeviceDefault('leaf', 'power') && selectedLeafDevice && (
-                      <Chip 
-                        size="small" 
-                        label="Device Default" 
-                        color="primary" 
-                        variant="outlined" 
-                      />
+                      <Chip size="small" label="Device Default" color="primary" variant="outlined" />
+                    )}
+                    {isOverridden('leaf') && (
+                      <>
+                        <Chip
+                          size="small"
+                          label={`Overridden (${getPricingSource('leaf') === 'manual' ? 'Manual' : 'Device Default'})`}
+                          color="secondary"
+                          variant="outlined"
+                        />
+                        <Typography
+                          variant="caption"
+                          sx={{ ml: 0.5, cursor: 'pointer', textDecoration: 'underline' }}
+                          onClick={() => clearOverride('leaf')}
+                        >
+                          Clear override
+                        </Typography>
+                      </>
                     )}
                   </Grid>
                 </Grid>
@@ -469,7 +505,10 @@ const CostPowerConfigPanel = ({
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <Typography variant="h6" gutterBottom>
-            Device Cost & Power Settings
+            Global Cost & Power Defaults
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            These defaults are used unless a selected device specifies a pricing override in Device Selection.
           </Typography>
           <Grid container spacing={3}>
             {/* Spine Switch Settings */}

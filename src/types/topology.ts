@@ -95,13 +95,21 @@ export interface RackSpaceParameters {
   leafRackUnits: number;
 }
 
+export type PricingSource = 'global' | 'device-default' | 'manual';
+
 export interface DeviceSelection {
   spine?: {
     deviceId: string;
     useDefaultConfig: boolean;
+    costOverride?: number;
+    powerOverride?: number;
+    pricingSource?: PricingSource; // defaults to 'global' when absent
   };
   leaf?: {
     deviceId: string;
     useDefaultConfig: boolean;
+    costOverride?: number;
+    powerOverride?: number;
+    pricingSource?: PricingSource; // defaults to 'global' when absent
   };
 }

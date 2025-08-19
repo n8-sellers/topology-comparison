@@ -7,6 +7,7 @@ import {
   FormControl,
   FormControlLabel,
   Grid,
+  TextField,
   InputLabel,
   MenuItem,
   Select,
@@ -44,10 +45,16 @@ interface DeviceSelectionProps {
         spine?: {
           deviceId?: string;
           useDefaultConfig?: boolean;
+          costOverride?: number;
+          powerOverride?: number;
+          pricingSource?: 'global' | 'device-default' | 'manual';
         };
         leaf?: {
           deviceId?: string;
           useDefaultConfig?: boolean;
+          costOverride?: number;
+          powerOverride?: number;
+          pricingSource?: 'global' | 'device-default' | 'manual';
         };
       };
       spineConfig: {
@@ -254,8 +261,6 @@ const DeviceSelection = ({ topology, setTopology }: DeviceSelectionProps) => {
         breakoutMode: portConfig.breakoutOptions[0]
       };
       
-      updatedTopology.configuration.switchCost.spine = device.cost;
-      updatedTopology.configuration.powerUsage.spine = device.powerConsumption.typical;
       updatedTopology.configuration.rackSpaceParameters.spineRackUnits = device.rackUnits;
     } else if (deviceType === 'leaf') {
       const leafDevice = device as LeafDevice;
@@ -272,8 +277,6 @@ const DeviceSelection = ({ topology, setTopology }: DeviceSelectionProps) => {
         breakoutMode: `1x${leafDevice.downlinkOptions[leafDevice.downlinkOptions.length - 1]}`
       };
       
-      updatedTopology.configuration.switchCost.leaf = device.cost;
-      updatedTopology.configuration.powerUsage.leaf = device.powerConsumption.typical;
       updatedTopology.configuration.rackSpaceParameters.leafRackUnits = device.rackUnits;
     }
     
@@ -563,8 +566,6 @@ const DeviceSelection = ({ topology, setTopology }: DeviceSelectionProps) => {
         breakoutMode: portConfig.breakoutOptions[0]
       };
       
-      updatedTopology.configuration.switchCost.spine = selectedSpineDevice.cost;
-      updatedTopology.configuration.powerUsage.spine = selectedSpineDevice.powerConsumption.typical;
       updatedTopology.configuration.rackSpaceParameters.spineRackUnits = selectedSpineDevice.rackUnits;
     }
     
@@ -603,15 +604,52 @@ const DeviceSelection = ({ topology, setTopology }: DeviceSelectionProps) => {
         downlinkSpeed: selectedLeafDevice.downlinkOptions[selectedLeafDevice.downlinkOptions.length - 1] // Use the highest speed
       };
       
-      updatedTopology.configuration.switchCost.leaf = selectedLeafDevice.cost;
-      updatedTopology.configuration.powerUsage.leaf = selectedLeafDevice.powerConsumption.typical;
       updatedTopology.configuration.rackSpaceParameters.leafRackUnits = selectedLeafDevice.rackUnits;
     }
     
     setTopology(updatedTopology);
   };
 
-  // This function was unused and has been removed
+  // Pricing source and overrides helpers
+  const setPricingSource = (deviceType: 'spine' | 'leaf', source: 'global' | 'device-default' | 'manual') => {
+    const updated = { ...topology };
+    const sel = updated.configuration.deviceSelection || {};
+    const role: any = { ...(sel[deviceType] || {}) };
+    role.pricingSource = source;
+    if (source === 'global') {
+      delete role.costOverride;
+      delete role.powerOverride;
+    } else if (source === 'device-default') {
+      const dev = deviceType === 'spine' ? selectedSpineDevice : selectedLeafDevice;
+      if (dev) {
+        role.costOverride = dev.cost;
+        role.powerOverride = dev.powerConsumption.typical;
+      }
+    } else if (source === 'manual') {
+      if (role.costOverride == null) {
+        role.costOverride = deviceType === 'spine' ? topology.configuration.switchCost.spine : topology.configuration.switchCost.leaf;
+      }
+      if (role.powerOverride == null) {
+        role.powerOverride = deviceType === 'spine' ? topology.configuration.powerUsage.spine : topology.configuration.powerUsage.leaf;
+      }
+    }
+    updated.configuration.deviceSelection = { ...sel, [deviceType]: role };
+    setTopology(updated);
+  };
+
+  const handleManualOverrideChange = (deviceType: 'spine' | 'leaf', field: 'cost' | 'power', value: number) => {
+    const updated = { ...topology };
+    const sel = updated.configuration.deviceSelection || {};
+    const role: any = { ...(sel[deviceType] || {}) };
+    role.pricingSource = 'manual';
+    if (field === 'cost') {
+      role.costOverride = value;
+    } else {
+      role.powerOverride = value;
+    }
+    updated.configuration.deviceSelection = { ...sel, [deviceType]: role };
+    setTopology(updated);
+  };
 
   // Render device specifications
   const renderSpecificationsTable = (device: Device | LeafDevice | null) => {
@@ -841,6 +879,54 @@ const DeviceSelection = ({ topology, setTopology }: DeviceSelectionProps) => {
                       </Button>
                     </Box>
                   </Box>
+
+                  {/* Pricing Source */}
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" gutterBottom>Pricing Source</Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel id="spine-pricing-source-label">Pricing Source</InputLabel>
+                          <Select
+                            labelId="spine-pricing-source-label"
+                            id="spine-pricing-source"
+                            label="Pricing Source"
+                            value={topology.configuration.deviceSelection?.spine?.pricingSource || 'global'}
+                            onChange={(e) => setPricingSource('spine', e.target.value as any)}
+                          >
+                            <MenuItem value="global">Use Global Defaults</MenuItem>
+                            <MenuItem value="device-default" disabled={!selectedSpineDevice}>Use Device Defaults</MenuItem>
+                            <MenuItem value="manual">Manual Override</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      {topology.configuration.deviceSelection?.spine?.pricingSource === 'manual' && (
+                        <>
+                          <Grid item xs={12} md={3}>
+                            <TextField
+                              label="Cost"
+                              type="number"
+                              size="small"
+                              value={topology.configuration.deviceSelection?.spine?.costOverride ?? ''}
+                              onChange={(e) => handleManualOverrideChange('spine', 'cost', Number(e.target.value))}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={3}>
+                            <TextField
+                              label="Power (W)"
+                              type="number"
+                              size="small"
+                              value={topology.configuration.deviceSelection?.spine?.powerOverride ?? ''}
+                              onChange={(e) => handleManualOverrideChange('spine', 'power', Number(e.target.value))}
+                            />
+                          </Grid>
+                        </>
+                      )}
+                    </Grid>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                      Pricing source controls cost/power for metrics. Global defaults are edited in the Global Cost & Power Defaults panel below.
+                    </Typography>
+                  </Box>
                 </>
               )}
             </CardContent>
@@ -1062,6 +1148,54 @@ const DeviceSelection = ({ topology, setTopology }: DeviceSelectionProps) => {
                         Apply Device Defaults
                       </Button>
                     </Box>
+                  </Box>
+
+                  {/* Pricing Source */}
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" gutterBottom>Pricing Source</Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel id="leaf-pricing-source-label">Pricing Source</InputLabel>
+                          <Select
+                            labelId="leaf-pricing-source-label"
+                            id="leaf-pricing-source"
+                            label="Pricing Source"
+                            value={topology.configuration.deviceSelection?.leaf?.pricingSource || 'global'}
+                            onChange={(e) => setPricingSource('leaf', e.target.value as any)}
+                          >
+                            <MenuItem value="global">Use Global Defaults</MenuItem>
+                            <MenuItem value="device-default" disabled={!selectedLeafDevice}>Use Device Defaults</MenuItem>
+                            <MenuItem value="manual">Manual Override</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      {topology.configuration.deviceSelection?.leaf?.pricingSource === 'manual' && (
+                        <>
+                          <Grid item xs={12} md={3}>
+                            <TextField
+                              label="Cost"
+                              type="number"
+                              size="small"
+                              value={topology.configuration.deviceSelection?.leaf?.costOverride ?? ''}
+                              onChange={(e) => handleManualOverrideChange('leaf', 'cost', Number(e.target.value))}
+                            />
+                          </Grid>
+                          <Grid item xs={12} md={3}>
+                            <TextField
+                              label="Power (W)"
+                              type="number"
+                              size="small"
+                              value={topology.configuration.deviceSelection?.leaf?.powerOverride ?? ''}
+                              onChange={(e) => handleManualOverrideChange('leaf', 'power', Number(e.target.value))}
+                            />
+                          </Grid>
+                        </>
+                      )}
+                    </Grid>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                      Pricing source controls cost/power for metrics. Global defaults are edited in the Global Cost & Power Defaults panel below.
+                    </Typography>
                   </Box>
                 </>
               )}
