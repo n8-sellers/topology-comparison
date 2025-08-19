@@ -211,6 +211,35 @@ const TopologyForm = () => {
     }
   };
   
+  // New helper to atomically update nested config objects
+  const updateNestedConfig = <T extends keyof TopologyConfiguration>(
+    parent: T,
+    patch: Partial<TopologyConfiguration[T]>
+  ): void => {
+    if (!topology) return;
+    const parentConfig = topology.configuration[parent] || {};
+    const updatedParentConfig = {
+      ...parentConfig,
+      ...(patch as object),
+    } as TopologyConfiguration[T];
+
+    const updatedTopology: Topology = {
+      ...topology,
+      configuration: {
+        ...topology.configuration,
+        [parent]: updatedParentConfig as any,
+      },
+    };
+
+    // Validate and commit
+    validateTopology(updatedTopology);
+    setTopology(updatedTopology);
+
+    if (autoSave) {
+      updateTopologyWithAutoSave(updatedTopology);
+    }
+  };
+  
   // Validate the topology configuration
   const validateTopology = (topologyToValidate: Topology): boolean => {
     const errors: ValidationErrors = {};
@@ -231,9 +260,8 @@ const TopologyForm = () => {
     // Check if leaf count exceeds maximum
     const { portCount, portSpeed, breakoutMode } = topologyConfig.spineConfig;
     
-    // Ensure breakoutOptions exists and has the right structure
-    if (!topologyConfig.breakoutOptions || 
-        !('portSpeed' in topologyConfig.breakoutOptions)) {
+    // Ensure breakoutOptions exists
+    if (!topologyConfig.breakoutOptions) {
       errors.spineConfig = 'Invalid breakout options configuration';
       setValidationErrors(errors);
       return Object.keys(errors).length === 0;
@@ -810,18 +838,16 @@ const TopologyForm = () => {
                     value={topology.configuration.spineConfig.portSpeed}
                     onChange={(e) => {
                       const newSpeed = String(e.target.value);
-                      // Update port speed
-                      handleNestedConfigChange('spineConfig', 'portSpeed', newSpeed);
-                      // If current breakout mode isn't valid for new speed, set first available
                       const bo: Record<string, { type: string; factor: number }[]> =
                         (topology.configuration.breakoutOptions as any) || {};
                       const options = bo[newSpeed] || [];
-                      if (
-                        options.length > 0 &&
-                        !options.find((o) => o.type === topology.configuration.spineConfig.breakoutMode)
-                      ) {
-                        handleNestedConfigChange('spineConfig', 'breakoutMode', options[0].type);
-                      }
+                      const currentMode = topology.configuration.spineConfig.breakoutMode;
+                      const nextMode =
+                        options.length > 0 && !options.find((o) => o.type === currentMode)
+                          ? options[0].type
+                          : currentMode;
+
+                      updateNestedConfig('spineConfig', { portSpeed: newSpeed, breakoutMode: nextMode } as any);
                     }}
                   >
                     {Object.keys((topology.configuration.breakoutOptions as any) || {}).map((speed) => (
@@ -878,15 +904,16 @@ const TopologyForm = () => {
                     value={topology.configuration.leafConfig.downlinkSpeed}
                     onChange={(e) => {
                       const newSpeed = String(e.target.value);
-                      handleNestedConfigChange('leafConfig', 'downlinkSpeed', newSpeed);
-                      // If current leaf breakout mode not valid for new speed, set first available if present
                       const bo: Record<string, { type: string; factor: number }[]> =
                         (topology.configuration.breakoutOptions as any) || {};
                       const options = bo[newSpeed] || [];
                       const currentLeafMode = (topology.configuration.leafConfig as any).breakoutMode;
-                      if (options.length > 0 && (!currentLeafMode || !options.find((o) => o.type === currentLeafMode))) {
-                        handleNestedConfigChange('leafConfig', 'breakoutMode', options[0].type);
-                      }
+                      const nextMode =
+                        options.length > 0 && (!currentLeafMode || !options.find((o) => o.type === currentLeafMode))
+                          ? options[0].type
+                          : currentLeafMode;
+
+                      updateNestedConfig('leafConfig', { downlinkSpeed: newSpeed, breakoutMode: nextMode } as any);
                     }}
                   >
                     {Object.keys((topology.configuration.breakoutOptions as any) || {}).map((speed) => (
