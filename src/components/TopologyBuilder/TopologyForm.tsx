@@ -23,6 +23,7 @@ import {
   Chip,
   TooltipProps
 } from '@mui/material';
+import { FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -789,6 +790,150 @@ const TopologyForm = () => {
               />
             </Grid>
           </Grid>
+
+          {/* Interface Configuration */}
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="subtitle1" gutterBottom>Interface Configuration</Typography>
+            <Divider />
+            <Grid container spacing={3} sx={{ mt: 2 }}>
+              {/* Spine Interfaces */}
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" gutterBottom>Spine Interfaces</Typography>
+
+                {/* Spine Port Speed */}
+                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                  <InputLabel id="spine-port-speed-label">Port Speed</InputLabel>
+                  <Select
+                    labelId="spine-port-speed-label"
+                    id="spine-port-speed"
+                    label="Port Speed"
+                    value={topology.configuration.spineConfig.portSpeed}
+                    onChange={(e) => {
+                      const newSpeed = String(e.target.value);
+                      // Update port speed
+                      handleNestedConfigChange('spineConfig', 'portSpeed', newSpeed);
+                      // If current breakout mode isn't valid for new speed, set first available
+                      const bo: Record<string, { type: string; factor: number }[]> =
+                        (topology.configuration.breakoutOptions as any) || {};
+                      const options = bo[newSpeed] || [];
+                      if (
+                        options.length > 0 &&
+                        !options.find((o) => o.type === topology.configuration.spineConfig.breakoutMode)
+                      ) {
+                        handleNestedConfigChange('spineConfig', 'breakoutMode', options[0].type);
+                      }
+                    }}
+                  >
+                    {Object.keys((topology.configuration.breakoutOptions as any) || {}).map((speed) => (
+                      <MenuItem key={speed} value={speed}>{speed}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Spine Port Count */}
+                <TextField
+                  label="Port Count"
+                  type="number"
+                  size="small"
+                  value={topology.configuration.spineConfig.portCount}
+                  onChange={(e) =>
+                    handleNestedConfigChange('spineConfig', 'portCount', parseInt(e.target.value) || 0)
+                  }
+                  inputProps={{ min: 1 }}
+                  sx={{ mb: 2 }}
+                />
+
+                {/* Spine Breakout Mode */}
+                <FormControl fullWidth size="small">
+                  <InputLabel id="spine-breakout-mode-label">Breakout Mode</InputLabel>
+                  <Select
+                    labelId="spine-breakout-mode-label"
+                    id="spine-breakout-mode"
+                    label="Breakout Mode"
+                    value={topology.configuration.spineConfig.breakoutMode}
+                    onChange={(e) =>
+                      handleNestedConfigChange('spineConfig', 'breakoutMode', String(e.target.value))
+                    }
+                  >
+                    {(((topology.configuration.breakoutOptions as any) || {})[
+                      topology.configuration.spineConfig.portSpeed
+                    ] || []).map((opt: any) => (
+                      <MenuItem key={opt.type} value={opt.type}>{opt.type}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Leaf Interfaces */}
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" gutterBottom>Leaf Interfaces</Typography>
+
+                {/* Leaf Downlink Speed */}
+                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                  <InputLabel id="leaf-downlink-speed-label">Downlink Speed</InputLabel>
+                  <Select
+                    labelId="leaf-downlink-speed-label"
+                    id="leaf-downlink-speed"
+                    label="Downlink Speed"
+                    value={topology.configuration.leafConfig.downlinkSpeed}
+                    onChange={(e) => {
+                      const newSpeed = String(e.target.value);
+                      handleNestedConfigChange('leafConfig', 'downlinkSpeed', newSpeed);
+                      // If current leaf breakout mode not valid for new speed, set first available if present
+                      const bo: Record<string, { type: string; factor: number }[]> =
+                        (topology.configuration.breakoutOptions as any) || {};
+                      const options = bo[newSpeed] || [];
+                      const currentLeafMode = (topology.configuration.leafConfig as any).breakoutMode;
+                      if (options.length > 0 && (!currentLeafMode || !options.find((o) => o.type === currentLeafMode))) {
+                        handleNestedConfigChange('leafConfig', 'breakoutMode', options[0].type);
+                      }
+                    }}
+                  >
+                    {Object.keys((topology.configuration.breakoutOptions as any) || {}).map((speed) => (
+                      <MenuItem key={speed} value={speed}>{speed}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* Leaf Port Count */}
+                <TextField
+                  label="Port Count"
+                  type="number"
+                  size="small"
+                  value={topology.configuration.leafConfig.portCount}
+                  onChange={(e) =>
+                    handleNestedConfigChange('leafConfig', 'portCount', parseInt(e.target.value) || 0)
+                  }
+                  inputProps={{ min: 1 }}
+                  sx={{ mb: 2 }}
+                />
+
+                {/* Leaf Breakout Mode (optional) */}
+                {(((topology.configuration.breakoutOptions as any) || {})[
+                  topology.configuration.leafConfig.downlinkSpeed
+                ] || []).length > 0 && (
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="leaf-breakout-mode-label">Breakout Mode</InputLabel>
+                    <Select
+                      labelId="leaf-breakout-mode-label"
+                      id="leaf-breakout-mode"
+                      label="Breakout Mode"
+                      value={(topology.configuration.leafConfig as any).breakoutMode || ''}
+                      onChange={(e) =>
+                        handleNestedConfigChange('leafConfig', 'breakoutMode', String(e.target.value))
+                      }
+                    >
+                      {(((topology.configuration.breakoutOptions as any) || {})[
+                        topology.configuration.leafConfig.downlinkSpeed
+                      ] || []).map((opt: any) => (
+                        <MenuItem key={opt.type} value={opt.type}>{opt.type}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              </Grid>
+            </Grid>
+          </Box>
         </TabPanel>
         
         {/* Render other tabs */}
