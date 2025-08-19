@@ -1,1 +1,18 @@
-node_modules
+# dependencies
+node_modules/
+
+# builds and outputs
+build/
+dist/
+out/
+coverage/
+*.log
+
+# environment
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

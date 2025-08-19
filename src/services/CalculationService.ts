@@ -412,26 +412,21 @@ export const calculateOversubscription = (config: TopologyConfiguration): Oversu
     };
   }
   
-  // Ensure spineConfig exists
-  if (!config.spineConfig) {
-    config.spineConfig = {
-      portCount: 64,
-      portSpeed: '800G',
-      breakoutMode: '1x800G'
-    };
-  }
+  // Derive configurations without mutating the input config
+  const spineCfg = config.spineConfig ?? {
+    portCount: 64,
+    portSpeed: '800G',
+    breakoutMode: '1x800G'
+  };
   
-  // Ensure leafConfig exists
-  if (!config.leafConfig) {
-    config.leafConfig = {
-      portCount: 48,
-      downlinkSpeed: '100G',
-      breakoutMode: '1x100G' // Default to no breakout
-    };
-  }
+  const leafCfg = config.leafConfig ?? {
+    portCount: 48,
+    downlinkSpeed: '100G',
+    breakoutMode: '1x100G' // Default to no breakout
+  };
   
   // ---- SPINE DOWNLINK CAPACITY CALCULATION ----
-  const { portCount: spinePortCount, portSpeed: spinePortSpeed } = config.spineConfig;
+  const { portCount: spinePortCount, portSpeed: spinePortSpeed } = spineCfg;
   
   // Extract the speed value from the port speed (e.g., '800G' -> 800)
   const spineSpeedMatch = spinePortSpeed.match(/\d+/);
@@ -450,7 +445,7 @@ export const calculateOversubscription = (config: TopologyConfiguration): Oversu
   // For breakout situations, we may connect multiple leaf ports to a single spine port
   if (config.spineConfig) {
     // New model with spineConfig
-    const { breakoutMode } = config.spineConfig;
+    const { breakoutMode } = spineCfg;
     
     // Determine breakout factor for spine ports
     let spineBreakoutFactor = 1;
@@ -486,26 +481,26 @@ export const calculateOversubscription = (config: TopologyConfiguration): Oversu
   
   // ---- LEAF DOWNLINK CAPACITY CALCULATION ----
   // Get the leaf switch port configuration
-  const leafPortCount = config.leafConfig.portCount || 48;
+  const leafPortCount = leafCfg.portCount || 48;
   
   // Calculate available downlink ports per leaf (total ports minus uplink ports)
   const downlinkPortsPerLeaf = Math.max(0, leafPortCount - uplinkPortsPerLeaf);
   
   // Get the downlink port speed
-  const downlinkSpeed = config.leafConfig.downlinkSpeed;
+  const downlinkSpeed = leafCfg.downlinkSpeed;
   const downlinkSpeedGbps = downlinkSpeed ? 
     parseInt((downlinkSpeed.match(/\d+/)?.[0]) || '100') : 100;
   
   // Get the leaf breakout mode and factor to calculate total server ports
   let leafBreakoutFactor = 1;
-  if (config.leafConfig.breakoutMode && config.breakoutOptions && 
+  if (leafCfg.breakoutMode && config.breakoutOptions && 
       typeof config.breakoutOptions === 'object' && !Array.isArray(config.breakoutOptions)) {
     // It's the new BreakoutOptions type
     const options = config.breakoutOptions as BreakoutOptions;
     
     if (options[downlinkSpeed]) {
       const leafBreakoutOption = options[downlinkSpeed].find(
-        (option: BreakoutOption) => option.type === config.leafConfig.breakoutMode
+        (option: BreakoutOption) => option.type === leafCfg.breakoutMode
       );
       
       if (leafBreakoutOption) {
@@ -529,7 +524,8 @@ export const calculateOversubscription = (config: TopologyConfiguration): Oversu
   
   // ---- OVERSUBSCRIPTION CALCULATION ----
   // Full debug logging for oversubscription calculation
-  console.log('==== OVERSUBSCRIPTION DEBUG ====');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('==== OVERSUBSCRIPTION DEBUG ====');
   console.log('Spine Count:', numSpines);
   console.log('Leaf Count:', numLeafs);
   console.log('Spine Port Count:', spinePortCount);
@@ -550,11 +546,11 @@ export const calculateOversubscription = (config: TopologyConfiguration): Oversu
   console.log('Spine Port Details:');
   console.log('- Model:', config.deviceSelection?.spine?.deviceId || 'Generic');
   console.log('- Port Speed:', spinePortSpeed);
-  console.log('- Breakout Mode:', config.spineConfig.breakoutMode);
+  console.log('- Breakout Mode:', spineCfg.breakoutMode);
   console.log('Leaf Port Details:');
   console.log('- Model:', config.deviceSelection?.leaf?.deviceId || 'Generic');
   console.log('- Port Speed:', downlinkSpeed);
-  console.log('- Breakout Mode:', config.leafConfig.breakoutMode || 'N/A');
+  console.log('- Breakout Mode:', leafCfg.breakoutMode || 'N/A');
   
   // Calculate the ratio properly - default to 1:1 ratio
   let rawRatio = 1.0;
@@ -628,13 +624,25 @@ export const calculateOversubscription = (config: TopologyConfiguration): Oversu
   
   console.log('Final Formatted Ratio:', oversubscriptionRatio);
   console.log('===========================');
-  
+}
+
+  // Compute final ratio for return (outside of dev-only logs)
+  let ratioStr: string;
+  if (totalUplinkCapacity > 0 && totalDownlinkCapacity > 0) {
+    const perLeafRatio = downlinkCapacityPerLeaf / (uplinkCapacityPerLeaf || 1);
+    let rr = perLeafRatio > 1.1 ? perLeafRatio : 1.0;
+    if (Math.abs(rr - 1.0) < 0.1) rr = 1.0;
+    ratioStr = rr.toFixed(2);
+  } else {
+    ratioStr = '1.00';
+  }
+
   return {
     uplinkCapacity: totalUplinkCapacity,
     downlinkCapacity: totalDownlinkCapacity,
     uplinkPortsPerLeaf,
     downlinkPortsPerLeaf,
-    ratio: oversubscriptionRatio
+    ratio: ratioStr
   };
 };
 

@@ -24,7 +24,7 @@ const debounce = <T extends (...args: any[]) => any>(
   func: T, 
   wait: number
 ): DebouncedFunction<T> => {
-  let timeout: NodeJS.Timeout | null = null;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
   
   return function executedFunction(...args: Parameters<T>) {
     const later = () => {

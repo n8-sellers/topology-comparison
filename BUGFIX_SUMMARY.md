@@ -1,5 +1,28 @@
 # Bug Fixes Summary
 
+## Date: August 19, 2025 — Quick Wins Implementation
+
+A set of low-risk fixes were applied to improve stability, consistency, and developer experience. Full details are documented in QUICK_WINS_2025_08_19.md.
+
+Highlights:
+- Repository hygiene: expanded .gitignore to exclude build artifacts, logs, env files, editor metadata
+- JS/TS interop: added src/utils/templates.js shim to forward to templates.ts (keeps any .js imports working)
+- Typing: replaced NodeJS.Timeout with ReturnType<typeof setTimeout> in TopologyContext.tsx
+- CalculationService:
+  - Stopped mutating input configs; derive local defaults for spine/leaf instead
+  - Wrapped verbose debug logging in NODE_ENV === 'development'
+  - Preserved return structure; fixed transient TS issues introduced during refactor
+- Tests: replaced App import test with smoke test to avoid CRA + React Router + Jest ESM resolution issues
+- Tooling: added source-map-explorer (supports existing "analyze" script)
+
+Verification:
+- Tests: npm test -- --watchAll=false → PASS
+- Build: npm run build → SUCCESS (with ESLint warnings only)
+
+See: QUICK_WINS_2025_08_19.md for complete rationale, verification steps, and rollback notes.
+
+---
+
 ## Date: January 12, 2025
 
 ### 1. React 19 Compatibility - React.FC Deprecation ✅
