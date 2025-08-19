@@ -244,7 +244,7 @@ const DeviceSpecificationVisualizer = ({
               <Grid item xs={12} md={4}>
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Typography variant="subtitle2" gutterBottom>Rack Units</Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'center', my: 1 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', my: 1 }}>
                     {Array.from({ length: device.rackUnits }).map((_, index) => (
                       <Box
                         key={index}

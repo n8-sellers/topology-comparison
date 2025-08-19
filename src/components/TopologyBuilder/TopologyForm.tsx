@@ -519,7 +519,7 @@ const TopologyForm = () => {
   // Render other parameters tab
   const renderOtherParameters = () => {
     return (
-      <TabPanel value={tabValue} index={4}>
+      <TabPanel value={tabValue} index={3}>
         <Typography variant="h6">Additional Parameters</Typography>
         <Grid container spacing={3}>
           <Grid item xs={12}>
@@ -601,7 +601,6 @@ const TopologyForm = () => {
             <Tab label="Basic Configuration" />
             <Tab label="Device Selection" />
             <Tab label="Advanced Configuration" />
-            <Tab label="Cost & Power" />
             <Tab label="Other Parameters" />
           </Tabs>
         </Box>
@@ -795,7 +794,6 @@ const TopologyForm = () => {
         {/* Render other tabs */}
         {renderDeviceSelection()}
         {renderAdvancedConfiguration()}
-        {renderCostPower()}
         {renderOtherParameters()}
         
       </CardContent>

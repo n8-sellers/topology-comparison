@@ -20,6 +20,7 @@ import {
   Badge
 } from '@mui/material';
 import DeviceSpecificationVisualizer from './DeviceSpecificationVisualizer';
+import CostPowerConfigPanel from './CostPowerConfigPanel';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -1066,6 +1067,16 @@ const DeviceSelection = ({ topology, setTopology }: DeviceSelectionProps) => {
               )}
             </CardContent>
           </Card>
+        </Grid>
+        <Grid item xs={12}>
+          <CostPowerConfigPanel
+            topology={topology as any}
+            setTopology={setTopology}
+            selectedSpineDevice={selectedSpineDevice}
+            selectedLeafDevice={selectedLeafDevice}
+            panelType="compact"
+            opticConfig={true}
+          />
         </Grid>
       </Grid>
       

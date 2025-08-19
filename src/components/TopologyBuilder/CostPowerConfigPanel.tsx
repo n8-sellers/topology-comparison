@@ -432,7 +432,7 @@ const CostPowerConfigPanel = ({
                         startAdornment={<InputAdornment position="start">$</InputAdornment>}
                         label="Cost"
                         type="number"
-                        value={topology.configuration.opticsCost || 1000}
+                        value={getCurrentOpticsCostValue()}
                         onChange={(e) => handleOpticsCostChange(Number(e.target.value))}
                         size="small"
                       />
